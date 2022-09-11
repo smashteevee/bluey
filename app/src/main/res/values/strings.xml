@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Bluey</string>
+    <string name="channel_name">Bluey Notification</string>
+    <string name="channel_description">Bluey description</string>
+</resources>
