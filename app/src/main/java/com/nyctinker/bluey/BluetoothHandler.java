@@ -42,6 +42,7 @@ import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -125,7 +126,7 @@ public class BluetoothHandler extends Service {
     private static final String password = "Mqtt3dl3p";
     private static final String appName = "app1";
     private static final String clientId = userName + "@" + appName;
-    private MqttAndroidClient mqttAndroidClient;
+    private static MqttAndroidClient mqttAndroidClient;
 
 
     // Helper
@@ -434,6 +435,8 @@ public class BluetoothHandler extends Service {
                 // Add it to our collection
                 BLEBeacon bleBeacon = new BLEBeacon(peripheral);
                 bleBeacon.modelName = modelNumber;
+                // TODO get RSSI
+                //bleBeacon.rssi = peripheral.get
                 targetDevices.put(peripheral.getAddress(), bleBeacon);
 
 
@@ -607,10 +610,17 @@ public class BluetoothHandler extends Service {
                     String key = entry.getKey().toString();
                     BLEBeacon targetDevice = entry.getValue();
 
+                    // Generate JSON string like
+                    // topic: bluey/Watch5,11
+                    // message: { "id":"[mac address]", "rssi":-84}
+                    String topic = "bluey/" + targetDevice.modelName;
+                    JSONObject payload = new JSONObject();
 
-                    String topic = "blueies/" + targetDevice.modelName;
-                    String message = targetDevice.address;
                     try {
+                        payload.put("id", targetDevice.address);
+                        payload.put("rssi", targetDevice.rssi);
+                        String message = payload.toString();
+
                         mqttAndroidClient.publish(topic, message.getBytes(),0,false);
                         Toast.makeText(getApplicationContext(), "published mqtt: " + topic + ": " + message, Toast.LENGTH_LONG).show();
                         Log.i(TAG, "publishing MQTT : " + topic + ": " + message);
