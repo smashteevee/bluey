@@ -17,6 +17,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
 import com.welie.blessed.BluetoothBytesParser;
@@ -105,6 +106,7 @@ public class BluetoothHandler extends Service {
     private static final UUID BATTERY_LEVEL_CHARACTERISTIC_UUID = UUID.fromString("00002A19-0000-1000-8000-00805f9b34fb");
     private static final String CHANNEL_ID = "BLE Scan Channel";
 
+    private static int lastRssi = 0;
 
     // Local variables
     public static BluetoothCentralManager central = null;
@@ -400,6 +402,18 @@ public class BluetoothHandler extends Service {
         }
 
         @Override
+        public void onReadRemoteRssi(@NotNull BluetoothPeripheral peripheral, int rssi, @NotNull GattStatus status) {
+
+            if (status == GattStatus.SUCCESS) {
+                Log.d(TAG, "SUCCESS: Reading " + rssi + " from " + peripheral.getAddress());
+                lastRssi = rssi;
+            } else {
+                Log.e(TAG, "ERROR: Failed reading RSSI");
+            }
+
+        }
+
+        @Override
         public void onCharacteristicUpdate(@NotNull BluetoothPeripheral peripheral, @NotNull byte[] value, @NotNull BluetoothGattCharacteristic characteristic, @NotNull GattStatus status) {
             if (status != GattStatus.SUCCESS) {
                 Log.e(TAG, "onCharacteristicsUpdate error: " + status);
@@ -435,8 +449,8 @@ public class BluetoothHandler extends Service {
                 // Add it to our collection
                 BLEBeacon bleBeacon = new BLEBeacon(peripheral);
                 bleBeacon.modelName = modelNumber;
-                // TODO get RSSI
-                //bleBeacon.rssi = peripheral.get
+                // TODO get RSSI in a less hacky way;
+                bleBeacon.rssi = lastRssi;
                 targetDevices.put(peripheral.getAddress(), bleBeacon);
 
 
@@ -472,6 +486,9 @@ public class BluetoothHandler extends Service {
             Log.d(TAG, "connected to " + peripheral.getName());
 
             // Don't close out current GATT command as we await service discovery
+
+            // Queue remote read
+            peripheral.readRemoteRssi();
         }
 
         @Override
@@ -503,7 +520,6 @@ public class BluetoothHandler extends Service {
                     Log.d(TAG, "Scan contains mfg data: " + bytesToHex(appleData));
                     Log.d(TAG, "Nearby info Status Flag is: " + appleData[2]);
                     Log.d(TAG, "Nearby info Action is: " + appleData[3]);
-
 
                     // Add to our collection of iOS Devices with Nearby Info for later processing
                     scannedIOSPeripherals.put(peripheral.getAddress(), peripheral);
@@ -619,6 +635,8 @@ public class BluetoothHandler extends Service {
                     try {
                         payload.put("id", targetDevice.address);
                         payload.put("rssi", targetDevice.rssi);
+                        // TODO: Replace experimental hack for distance
+                        payload.put("distance", Math.pow(10, (-83 - (targetDevice.rssi))/(10*2) ));
                         String message = payload.toString();
 
                         mqttAndroidClient.publish(topic, message.getBytes(),0,false);
@@ -636,6 +654,7 @@ public class BluetoothHandler extends Service {
                 // TODO: Cleanup method
                 scannedIOSPeripherals.clear();
                 targetDevices.clear();
+                lastRssi = 0;
 
                 // We done, complete the command
                 completedCommand();
