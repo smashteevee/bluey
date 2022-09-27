@@ -636,7 +636,7 @@ public class BluetoothHandler extends Service {
                         payload.put("id", targetDevice.address);
                         payload.put("rssi", targetDevice.rssi);
                         // TODO: Replace experimental hack for distance
-                        payload.put("distance", Math.pow(10, (-83 - (targetDevice.rssi))/(10*2) ));
+                        payload.put("distance", Math.pow(10, (-63 - (targetDevice.rssi))/(10*2.1) ));
                         String message = payload.toString();
 
                         mqttAndroidClient.publish(topic, message.getBytes(),0,false);
