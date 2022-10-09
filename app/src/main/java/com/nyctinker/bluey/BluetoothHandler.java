@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -128,7 +129,7 @@ public class BluetoothHandler extends Service {
     private static final String password = "Mqtt3dl3p";
     private static final String appName = "app1";
     private static final String clientId = userName + "@" + appName;
-    private static MqttAndroidClient mqttAndroidClient;
+    private static MqttAndroidClient mqttAndroidClient;  // TODO: cleanup is memory leak?
 
 
     // Helper
@@ -527,17 +528,29 @@ public class BluetoothHandler extends Service {
                     // GATT connect to get Model, Make info
                     //central.connectPeripheral(peripheral, peripheralCallback);
                 }
-            } else {
-                Log.d(TAG, "Found other device:");
+            } else if (peripheral.getAddress().equals("DD:34:02:05:5F:06")) { // TODO: Make dynamic, not hardcoded
+                Log.d(TAG, "Found non-Apple filtered device:");
                 Log.d(TAG, scanResult.toString());
 
+                // TODO: add to method
+                // Add it to our collection to send mqtt for
+                BLEBeacon bleBeacon = new BLEBeacon(peripheral);
+                bleBeacon.modelName = null; // null => regular beacon
+                bleBeacon.rssi = scanResult.getRssi();
+                targetDevices.put(peripheral.getAddress(), bleBeacon);
+
+            } else {
+                    Log.d(TAG, "Found other device:");
+                    Log.d(TAG, scanResult.toString());
 
 
-                //central.stopScan();
 
-                // GATT connect
-                //central.connectPeripheral(peripheral, peripheralCallback);
-                // TODO: end scan earleir after finding known devices (otherwise timeout)
+                    //central.stopScan();
+
+                    // GATT connect
+                    //central.connectPeripheral(peripheral, peripheralCallback);
+                    // TODO: end scan earleir after finding known devices (otherwise timeout)
+
             }
 
 
@@ -627,9 +640,10 @@ public class BluetoothHandler extends Service {
                     BLEBeacon targetDevice = entry.getValue();
 
                     // Generate JSON string like
-                    // topic: bluey/Watch5,11
+                    // topic: bluey/Watch5,11 (if apple model) or topic: bluey/[mac_address]
                     // message: { "id":"[mac address]", "rssi":-84}
-                    String topic = "bluey/" + targetDevice.modelName;
+                    String modelName = !(TextUtils.isEmpty(targetDevice.modelName)) ? targetDevice.modelName : targetDevice.address;
+                    String topic = "bluey/" + modelName;
                     JSONObject payload = new JSONObject();
 
                     try {
@@ -828,11 +842,12 @@ public class BluetoothHandler extends Service {
                 // Queue up stop scan command via post delay
                 stopScan();
 
-                // TODO:  Scan for Apple devices using partial mfger data mask, and allowlisted beacons MAC
+                // TODO: Cleanup code for multiple scan filters: Apple devices using partial mfger data mask, and allowlisted beacons MAC
                 final List<ScanFilter> filters = new ArrayList<>();
                 ScanFilter filter = new ScanFilter.Builder().setManufacturerData(0x4C, new byte[] {}).build();
-                //ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress("DD:34:02:05:5F:06").build();
+                ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress("DD:34:02:05:5F:06").build();
                 filters.add(filter);
+                filters.add(filterMac);
                 central.scanForPeripheralsUsingFilters(filters);
             }
         });
