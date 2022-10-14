@@ -18,7 +18,6 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
 import com.welie.blessed.BluetoothBytesParser;
@@ -55,9 +54,16 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import info.mqtt.android.service.MqttAndroidClient;
 
+/*
+* Foreground Service Class that handles BLE functions
+*
+* Borrows liberally from example code in BLESSED BLE library https://github.com/weliem/blessed-android
+*/
 public class BluetoothHandler extends Service {
     public static class BLEBeacon {
 
@@ -82,7 +88,7 @@ public class BluetoothHandler extends Service {
     public static final String ACTION_START_FOREGROUND_SERVICE = "ACTION_START_FOREGROUND_SERVICE";
     public static final String ACTION_STOP_FOREGROUND_SERVICE = "ACTION_STOP_FOREGROUND_SERVICE";
     public static final String ACTION_UPDATE_FOREGROUND_SERVICE = "ACTION_UPDATE_FOREGROUND_SERVICE";
-    private ArrayList<String> bleFilterList;
+    private ArrayList<String> bleFilterList = new ArrayList<>();
 
     private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
     private boolean commandQueueBusy;
@@ -120,7 +126,9 @@ public class BluetoothHandler extends Service {
     private static BluetoothPeripheral targetAppleWatch = null;
     private @NotNull
     Map<String, BluetoothPeripheral> scannedIOSPeripherals = new ConcurrentHashMap<>();
-    private @NotNull Map<String, BLEBeacon> targetDevices = new ConcurrentHashMap<>();
+    private @NotNull Map<String, BLEBeacon> foundDevices = new ConcurrentHashMap<>();
+    private ArrayList<String> targetMACs = new ArrayList<>();
+    private ArrayList<String> targetModels = new ArrayList<>();
 
     Instant lastCommandStart = null;
 
@@ -449,23 +457,21 @@ public class BluetoothHandler extends Service {
                 String modelNumber = parser.getStringValue(0);
                 Log.d(TAG, "Received modelnumber: " + modelNumber);
 
-                // If found target iWatch, bookmark it for next time and Notify UI we found it
-                // Apple watch strings per https://gist.github.com/adamawolf/3048717
-                //if (modelNumber.contains("Watch")) {
-                // Bookmark it
-                // targetAppleWatch = peripheral;
+
 
                 // Notify Main Activity UI
                // Intent intent = new Intent(MEASUREMENT_BEACON);
                 //intent.putExtra(MEASUREMENT_EXTRA_PERIPHERAL, modelNumber);
                 //getApplicationContext().sendBroadcast(intent);
 
-                // Add it to our collection
-                BLEBeacon bleBeacon = new BLEBeacon(peripheral);
-                bleBeacon.modelName = modelNumber;
-                // TODO get RSSI in a less hacky way;
-                bleBeacon.rssi = lastRssi;
-                targetDevices.put(peripheral.getAddress(), bleBeacon);
+                // Add it to our collection, if it was a target Model
+                if (targetModels.contains(modelNumber)) {
+                    BLEBeacon bleBeacon = new BLEBeacon(peripheral);
+                    bleBeacon.modelName = modelNumber;
+                    // TODO get RSSI in a less hacky way;
+                    bleBeacon.rssi = lastRssi;
+                    foundDevices.put(peripheral.getAddress(), bleBeacon);
+                }
 
 
                 // }
@@ -541,8 +547,8 @@ public class BluetoothHandler extends Service {
                     // GATT connect to get Model, Make info
                     //central.connectPeripheral(peripheral, peripheralCallback);
                 }
-            } else if (peripheral.getAddress().equals("DD:34:02:05:5F:06")) { // TODO: Make dynamic, not hardcoded
-                Log.d(TAG, "Found non-Apple filtered device:");
+            } else if ( targetMACs.contains(peripheral.getAddress())) {
+                Log.d(TAG, "Found targeted MAC address:");
                 Log.d(TAG, scanResult.toString());
 
                 // TODO: add to method
@@ -550,7 +556,7 @@ public class BluetoothHandler extends Service {
                 BLEBeacon bleBeacon = new BLEBeacon(peripheral);
                 bleBeacon.modelName = null; // null => regular beacon
                 bleBeacon.rssi = scanResult.getRssi();
-                targetDevices.put(peripheral.getAddress(), bleBeacon);
+                foundDevices.put(peripheral.getAddress(), bleBeacon);
 
             } else {
                     Log.d(TAG, "Found other device:");
@@ -648,22 +654,22 @@ public class BluetoothHandler extends Service {
                 Log.d(TAG, "process devices to send MQTT...");
 
                 // For every found device
-                for (Map.Entry<String, BLEBeacon> entry : targetDevices.entrySet()) {
+                for (Map.Entry<String, BLEBeacon> entry : foundDevices.entrySet()) {
                     String key = entry.getKey().toString();
-                    BLEBeacon targetDevice = entry.getValue();
+                    BLEBeacon foundDevice = entry.getValue();
 
                     // Generate JSON string like
                     // topic: bluey/Watch5,11 (if apple model) or topic: bluey/[mac_address]
                     // message: { "id":"[mac address]", "rssi":-84}
-                    String modelName = !(TextUtils.isEmpty(targetDevice.modelName)) ? targetDevice.modelName : targetDevice.address;
+                    String modelName = !(TextUtils.isEmpty(foundDevice.modelName)) ? foundDevice.modelName : foundDevice.address;
                     String topic = "bluey/" + modelName;
                     JSONObject payload = new JSONObject();
 
                     try {
-                        payload.put("id", targetDevice.address);
-                        payload.put("rssi", targetDevice.rssi);
+                        payload.put("id", foundDevice.address);
+                        payload.put("rssi", foundDevice.rssi);
                         // TODO: Replace experimental hack for distance
-                        payload.put("distance", Math.pow(10, (-63 - (targetDevice.rssi))/(10*2.1) ));
+                        payload.put("distance", Math.pow(10, (-63 - (foundDevice.rssi))/(10*2.1) ));
                         String message = payload.toString();
 
                         mqttAndroidClient.publish(topic, message.getBytes(),0,false);
@@ -680,7 +686,7 @@ public class BluetoothHandler extends Service {
 
                 // TODO: Cleanup method
                 scannedIOSPeripherals.clear();
-                targetDevices.clear();
+                foundDevices.clear();
                 lastRssi = 0;
 
                 // We done, complete the command
@@ -697,6 +703,24 @@ public class BluetoothHandler extends Service {
 
 
 
+    }
+
+    /**
+     * Convenience function for validating a MAC address
+     */
+    private boolean validateMAC(String mac) {
+        Pattern p = Pattern.compile("^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$");
+        Matcher m = p.matcher(mac);
+        return m.find();
+    }
+
+    /*
+    *   Convenience function for validating Apple Model string per https://gist.github.com/adamawolf/3048717
+     */
+    private boolean validateModel(String model) {
+        Pattern p = Pattern.compile("^[0-9A-Za-z]+,[0-9]+$");
+        Matcher m = p.matcher(model);
+        return m.find();
     }
 
     /**
@@ -842,9 +866,12 @@ public class BluetoothHandler extends Service {
         nextCommand();
     }
 
+    /*
+        Method for initiating BLE Scan based on filters
+     */
     private void startScan() {
 
-        // Enqueue the connect command now
+        // Enqueue the scan command now
         Boolean result = commandQueue.add(new Runnable() {
             @Override
             public void run() {
@@ -855,13 +882,39 @@ public class BluetoothHandler extends Service {
                 // Queue up stop scan command via post delay
                 stopScan();
 
-                // TODO: Cleanup code for multiple scan filters: Apple devices using partial mfger data mask, and allowlisted beacons MAC
+                // Initialize filters based on the BLE beacon filters entered
+                targetModels.clear();
+                targetMACs.clear();
+                // Apply multiple scan filters: Apple devices using partial mfger data mask, and allowlisted beacons MAC
                 final List<ScanFilter> filters = new ArrayList<>();
-                ScanFilter filter = new ScanFilter.Builder().setManufacturerData(0x4C, new byte[] {}).build();
-                ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress("DD:34:02:05:5F:06").build();
-                filters.add(filter);
-                filters.add(filterMac);
-                central.scanForPeripheralsUsingFilters(filters);
+
+                for (String bleItem : bleFilterList) {
+                    Log.d(TAG, "Processing " + bleItem);
+                    if (validateMAC(bleItem)) {
+                        // If it's a valid MAC address add to MAC scan filter
+                        ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress(bleItem).build();
+                        filters.add(filterMac);
+                        if (!targetMACs.contains(bleItem)) {
+                            targetMACs.add(bleItem);
+                        }
+                        Log.i(TAG, "Adding MAC: " + bleItem);
+                    } else if (validateModel(bleItem)) {
+                        // Else if valid Apple Model string, add to Apple models to target
+                        if (!targetModels.contains(bleItem)) {
+                            targetModels.add(bleItem);
+                        }
+                    }
+                }
+                // Setup Apple mfger Scan filter if 1 or more Apple Models entered
+                if (targetModels.size() > 0) {
+                    ScanFilter appleFilter = new ScanFilter.Builder().setManufacturerData(0x4C, new byte[] {}).build();
+                    filters.add(appleFilter);
+                }
+
+                // Start scan if anything to scan
+                if (filters.size() > 0) {
+                    central.scanForPeripheralsUsingFilters(filters);
+                }
             }
         });
 
