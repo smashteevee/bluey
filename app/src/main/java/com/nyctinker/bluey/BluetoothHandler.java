@@ -81,6 +81,8 @@ public class BluetoothHandler extends Service {
     public static boolean isDoneGATTConnecting = false;
     public static final String ACTION_START_FOREGROUND_SERVICE = "ACTION_START_FOREGROUND_SERVICE";
     public static final String ACTION_STOP_FOREGROUND_SERVICE = "ACTION_STOP_FOREGROUND_SERVICE";
+    public static final String ACTION_UPDATE_FOREGROUND_SERVICE = "ACTION_UPDATE_FOREGROUND_SERVICE";
+    private ArrayList<String> bleFilterList;
 
     private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
     private boolean commandQueueBusy;
@@ -241,6 +243,11 @@ public class BluetoothHandler extends Service {
                     stopForegroundService();
                     Toast.makeText(getApplicationContext(), "Foreground service stop command received.", Toast.LENGTH_LONG).show();
                     break;
+
+                case ACTION_UPDATE_FOREGROUND_SERVICE:
+                    Toast.makeText(getApplicationContext(), "Foreground service update command received.", Toast.LENGTH_LONG).show();
+                    updateForegroundService(intent);
+                    break;
             }
         }
         super.onStartCommand(intent, flags, startId);
@@ -317,6 +324,12 @@ public class BluetoothHandler extends Service {
 
     }
 
+    // Update parameters for BLE scanning service from Frontend activity
+    private void updateForegroundService(Intent intent) {
+        Log.d(TAG, "Updating Foreground service with new list");
+        // Update filter list
+        bleFilterList = intent.getStringArrayListExtra("BLEFilterList");
+    }
     private void stopForegroundService()
     {
         Log.d(TAG, "Stop foreground service.");

@@ -1,18 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/idRLContainer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context=".MainActivity">
-    <TextView
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="Hello World!"
-      app:layout_constraintBottom_toBottomOf="parent"
-      app:layout_constraintLeft_toLeftOf="parent"
-      app:layout_constraintRight_toRightOf="parent"
-      app:layout_constraintTop_toTopOf="parent" />
 
-  </androidx.constraintlayout.widget.ConstraintLayout>
+    <!--text field for new BLE items by MAC-->
+    <EditText
+        android:id="@+id/idEdtAdd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="4dp"
+        android:layout_toStartOf="@id/idBtnAdd"
+        android:hint="Add BLE item"
+        android:minHeight="48dp"
+        android:textColorHint="@color/black" />
+
+    <!--button to add new BLE Item by MAC-->
+    <Button
+        android:id="@+id/idBtnAdd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="4dp"
+        android:text="Add"
+        android:textAllCaps="false" />
+    <!-- edit field for IOS Make/model -->
+    <EditText
+        android:id="@+id/idEdtIOSAdd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/idEdtAdd"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="4dp"
+        android:layout_toStartOf="@id/idBtnIOSAdd"
+        android:hint="Add iOS Model item"
+        android:minHeight="48dp"
+        android:textColorHint="@color/black" />
+    <!-- add button for iOS make/model -->
+    <Button
+        android:id="@+id/idBtnIOSAdd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/idBtnAdd"
+        android:layout_margin="4dp"
+        android:text="Add iOS"
+        android:textAllCaps="false" />
+
+    <!--recycler view for displaying data-->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/idBLERVItems"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/idEdtIOSAdd"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+</RelativeLayout>

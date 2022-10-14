@@ -18,14 +18,26 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 
 import org.jetbrains.annotations.NotNull;
 
+import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
+
+    private RecyclerView bleItemRV;
+    private EditText newMACTextField;
+    private EditText newIOSTextField;
+    private Button newMACAddButton;
+    private Button newIOSAddButton;
+    private ArrayList<String> bleItemList;
+    private BLEItemRVAdapter bleItemRVAdapter;
 
     protected List<String> foundDevices = new ArrayList<>();
     public static final String TAG = "MainActivity";
@@ -43,8 +55,59 @@ public class MainActivity extends AppCompatActivity {
 
         registerReceiver(locationServiceStateReceiver, new IntentFilter((LocationManager.MODE_CHANGED_ACTION)));
        // registerReceiver(beaconReceiver, new IntentFilter(BluetoothHandler.MEASUREMENT_BEACON));
+        // Init elements
+        bleItemRV = findViewById(R.id.idBLERVItems);
+        newMACTextField = findViewById(R.id.idEdtAdd);
+        newMACAddButton = findViewById(R.id.idBtnAdd);
+        newIOSTextField = findViewById(R.id.idEdtIOSAdd);
+        newIOSAddButton = findViewById(R.id.idBtnIOSAdd);
+        bleItemList = new ArrayList<>();
+
+        // Tie BLEItemlist to adapter
+        bleItemRVAdapter = new BLEItemRVAdapter(bleItemList);
+
+        // Set adapter to our recycler view
+        bleItemRV.setAdapter(bleItemRVAdapter);
+
+        // Add click listener for our add buttons
+        newMACAddButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                addItem(newMACTextField.getText().toString());
+            }
+        });
+        newIOSAddButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                addItem(newIOSTextField.getText().toString());
+            }
+        });
+
+    }
+
+    /*
+       Convenience function to add item to RV
+    */
+    private void addItem(String item) {
+
+        if (!item.isEmpty()) {
+
+            bleItemList.add(item);
+            // Notify adapter
+            bleItemRVAdapter.notifyDataSetChanged();
+
+            // Update service with latest list // TODO: Clean up in function
+            Intent intent = new Intent(this, BluetoothHandler.class);
+            intent.setAction(BluetoothHandler.ACTION_UPDATE_FOREGROUND_SERVICE);
+            intent.putStringArrayListExtra("BLEFilterList", bleItemList);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
 
 
+        }
     }
 
     @Override
