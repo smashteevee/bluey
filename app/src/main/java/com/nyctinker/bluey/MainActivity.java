@@ -19,8 +19,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -33,7 +35,8 @@ public class MainActivity extends AppCompatActivity {
 
     private RecyclerView bleItemRV;
     private EditText newMACTextField;
-    private EditText newIOSTextField;
+//    private EditText newIOSTextField;
+    private Spinner newAppleSpinnerDropdown;
     private Button newMACAddButton;
     private Button newIOSAddButton;
     private ArrayList<String> bleItemList;
@@ -59,7 +62,18 @@ public class MainActivity extends AppCompatActivity {
         bleItemRV = findViewById(R.id.idBLERVItems);
         newMACTextField = findViewById(R.id.idEdtAdd);
         newMACAddButton = findViewById(R.id.idBtnAdd);
-        newIOSTextField = findViewById(R.id.idEdtIOSAdd);
+        newAppleSpinnerDropdown = findViewById(R.id.idAppleModelSpinner);
+
+
+        // Create an ArrayAdapter using the string array and a default spinner layout
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
+                R.array.apple_model_array, android.R.layout.simple_spinner_item);
+        // Specify the layout to use when the list of choices appears
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        // Apply the adapter to the spinner
+        newAppleSpinnerDropdown.setAdapter(adapter);
+
+
         newIOSAddButton = findViewById(R.id.idBtnIOSAdd);
         bleItemList = new ArrayList<>();
 
@@ -79,7 +93,7 @@ public class MainActivity extends AppCompatActivity {
         newIOSAddButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                addItem(newIOSTextField.getText().toString());
+                addItem(newAppleSpinnerDropdown.getSelectedItem().toString());
             }
         });
 
