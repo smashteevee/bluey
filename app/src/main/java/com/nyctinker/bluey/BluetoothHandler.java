@@ -639,11 +639,45 @@ public class BluetoothHandler extends Service {
                 // Process for sending found devices to MQTT
                 processMQTTMessages();
 
+                // Cool off before next scan
+                coolOff();
+
                 startScan();
             }
         }, 30000);  // TODO: Put in constant for how long scan period is
     }
 
+    /*
+        Cool off between MQTT processing and next BLE scan
+     */
+    private void coolOff() {
+        // Queue Cool off
+        Boolean result = commandQueue.add(new Runnable() {
+            @Override
+            public void run() {
+                Log.d(TAG, "Cooling off before scan.");
+                // Kick off delay before moving to next Command
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        Log.i(TAG, "Ending Cool Off period");
+                        // We done, complete the command
+                        completedCommand();
+
+                    }
+                },BLE_SCAN_COOL_OFF_TIME); // Cool off period before starting next scan
+
+            }
+        });
+
+        if(result) {
+            // Queue up to receive next command
+            nextCommand();
+        } else {
+            Log.e(TAG, "ERROR: Could not enqueue Cool Off command");
+        }
+    }
     private void processMQTTMessages() {
         // TODO: Refactor
         // Enqueue the MQTT processing
