@@ -35,7 +35,6 @@ public class MainActivity extends AppCompatActivity {
 
     private RecyclerView bleItemRV;
     private EditText newMACTextField;
-//    private EditText newIOSTextField;
     private Spinner newAppleSpinnerDropdown;
     private Button newMACAddButton;
     private Button newIOSAddButton;
@@ -47,8 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_ENABLE_BT = 1;
     private static final int ACCESS_LOCATION_REQUEST = 2;
 
-    // Whether the Log Fragment is currently shown
-    private boolean mLogShown;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -188,8 +186,6 @@ public class MainActivity extends AppCompatActivity {
     // Method to start foreground service of BT scanner
     private void initBluetoothHandler()
     {
-        // BluetoothHandler.getInstance(getApplicationContext());
-
         // Start foreground service of BT Handler
         Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
         intent.setAction(BluetoothHandler.ACTION_START_FOREGROUND_SERVICE);
