@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
@@ -67,8 +68,6 @@ import info.mqtt.android.service.MqttAndroidClient;
 public class BluetoothHandler extends Service {
     public static class BLEBeacon {
 
-        public BLEBeacon() {
-        }
 
         public BLEBeacon(BluetoothPeripheral peripheral) {
             name = peripheral.getName();
@@ -118,9 +117,7 @@ public class BluetoothHandler extends Service {
     private static int lastRssi = 0;
 
     // Local variables
-    public static BluetoothCentralManager central = null;
-    //private static BluetoothHandler instance = null;
-    //private final Context context;
+    public  BluetoothCentralManager central = null;
     private final Handler handler = new Handler();
     private int currentTimeCounter = 0;
     private static BluetoothPeripheral targetAppleWatch = null;
