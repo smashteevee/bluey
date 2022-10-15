@@ -33,7 +33,7 @@
         android:text="Add"
         android:textAllCaps="false" />
     <!-- edit field for IOS Make/model -->
-    <EditText
+    <!--EditText
         android:id="@+id/idEdtIOSAdd"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -45,7 +45,21 @@
         android:layout_toStartOf="@id/idBtnIOSAdd"
         android:hint="Add iOS Model item"
         android:minHeight="48dp"
-        android:textColorHint="@color/black" />
+        android:textColorHint="@color/black" /-->
+    <Spinner
+        android:id="@+id/idAppleModelSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/idEdtAdd"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="4dp"
+        android:layout_toStartOf="@id/idBtnIOSAdd"
+        android:minHeight="48dp"
+        android:background="@android:drawable/btn_dropdown"
+        android:spinnerMode="dropdown"/>
+
     <!-- add button for iOS make/model -->
     <Button
         android:id="@+id/idBtnIOSAdd"
@@ -62,7 +76,7 @@
         android:id="@+id/idBLERVItems"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/idEdtIOSAdd"
+        android:layout_below="@id/idAppleModelSpinner"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
 </RelativeLayout>
