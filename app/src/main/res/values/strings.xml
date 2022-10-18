@@ -2,4 +2,14 @@
     <string name="app_name">Bluey</string>
     <string name="channel_name">Bluey Notification</string>
     <string name="channel_description">Bluey description</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_settings">SettingsActivity</string>
+
+
+    <!-- MQTT Preferences -->
+    <string name="ble_scan_period_setting_title">BLE scan period</string>
+    <string name="ble_cool_off_period_setting_title">Cool off period (ms)</string>
+    <string name="mqtt_header">MQTT</string>
+    <string name="MQTT_server_address_setting_title">MQTT Server Address</string>
+    <string name="main_ble_settings_header">BLE</string>
 </resources>

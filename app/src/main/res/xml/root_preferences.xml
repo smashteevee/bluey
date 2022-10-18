@@ -1,0 +1,30 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="@string/main_ble_settings_header">
+        <EditTextPreference
+            app:defaultValue="30000"
+            app:key="ble_scan_period"
+            app:title="@string/ble_scan_period_setting_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:key="cool_off_period"
+            app:defaultValue="30000"
+            app:title="@string/ble_cool_off_period_setting_title"
+            app:useSimpleSummaryProvider="true" />
+
+
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/mqtt_header">
+
+        <EditTextPreference
+            app:key="mqtt_server_address"
+            app:title="@string/MQTT_server_address_setting_title"
+            app:useSimpleSummaryProvider="true" />
+
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

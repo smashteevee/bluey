@@ -18,6 +18,8 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -97,6 +99,25 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                // Settings item was selected
+                // Open settings activity.
+                Intent i = new Intent(MainActivity.this, SettingsActivity.class);
+                startActivity(i);
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
     /*
        Convenience function to add item to RV
     */
