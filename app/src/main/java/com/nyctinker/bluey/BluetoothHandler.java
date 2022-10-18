@@ -11,6 +11,7 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -20,6 +21,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
+import androidx.preference.PreferenceManager;
 
 import com.welie.blessed.BluetoothBytesParser;
 import com.welie.blessed.BluetoothCentralManager;
@@ -83,7 +85,6 @@ public class BluetoothHandler extends Service {
     private static final String TAG = "BluetoothHandler";
 
     public static boolean isRunning = false;
-    public static boolean isDoneGATTConnecting = false;
     public static final String ACTION_START_FOREGROUND_SERVICE = "ACTION_START_FOREGROUND_SERVICE";
     public static final String ACTION_STOP_FOREGROUND_SERVICE = "ACTION_STOP_FOREGROUND_SERVICE";
     public static final String ACTION_UPDATE_FOREGROUND_SERVICE = "ACTION_UPDATE_FOREGROUND_SERVICE";
@@ -93,7 +94,9 @@ public class BluetoothHandler extends Service {
     private boolean commandQueueBusy;
     Handler bleHandler = new Handler(Looper.getMainLooper());
 
-    private static final int BLE_SCAN_COOL_OFF_TIME = 30000;
+    private static int bleScanCoolOffTimeSettingValue = 0;
+    private static int bleScanPeriodTimeSettingValue = 30000;
+    private final static int DELAY_BETWEEN_BT_COMMANDS = 2000; // Delay between BT/GATT commands to avoid race issues - def. a hack
 
     // Intent constants
     public static final String MEASUREMENT_BEACON = "blessed.measurement.beacon";
@@ -119,8 +122,6 @@ public class BluetoothHandler extends Service {
     // Local variables
     public  BluetoothCentralManager central = null;
     private final Handler handler = new Handler();
-    private int currentTimeCounter = 0;
-    private static BluetoothPeripheral targetAppleWatch = null;
     private @NotNull
     Map<String, BluetoothPeripheral> scannedIOSPeripherals = new ConcurrentHashMap<>();
     private @NotNull Map<String, BLEBeacon> foundDevices = new ConcurrentHashMap<>();
@@ -136,7 +137,7 @@ public class BluetoothHandler extends Service {
     private static final String password = "Mqtt3dl3p";
     private static final String appName = "app1";
     private static final String clientId = userName + "@" + appName;
-    private static MqttAndroidClient mqttAndroidClient;  // TODO: cleanup is memory leak?
+    private MqttAndroidClient mqttAndroidClient = null;
 
 
     // Helper
@@ -165,7 +166,9 @@ public class BluetoothHandler extends Service {
         }
 
         // TODO Move to function
-        mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), serverUri, clientId);
+        if (mqttAndroidClient == null) {
+            mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), serverUri, clientId);
+        }
         mqttAndroidClient.setCallback(new MqttCallbackExtended() {
             @Override
             public void connectComplete(boolean reconnect, String serverURI) {
@@ -204,7 +207,7 @@ public class BluetoothHandler extends Service {
                         String message = e.getMessage();
                         Log.e(TAG, "MQTT error message is null " + String.valueOf(message == null));
                     }
-                    Log.i(TAG, "MQTT connected to: " + serverUri);
+
                     Toast.makeText(getApplicationContext(), "connected", Toast.LENGTH_SHORT).show();
                     DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
                     disconnectedBufferOptions.setBufferEnabled(true);
@@ -588,13 +591,14 @@ public class BluetoothHandler extends Service {
                 // Bluetooth is on now, start scanning again
                 // Scan for peripherals with a certain service UUIDs
                 central.startPairingPopupHack();
-                startScan();
+                //startScan();
             }
         }
 
         @Override
         public void onScanFailed(@NotNull ScanFailure scanFailure) {
             Log.e(TAG, "scanning failed with error " + scanFailure);
+            // TODO: Close and re-open adapter as hack
         }
     };
 
@@ -641,7 +645,7 @@ public class BluetoothHandler extends Service {
 
                 startScan();
             }
-        }, 30000);  // TODO: Put in constant for how long scan period is
+        }, bleScanPeriodTimeSettingValue);  // How long BLE scan period is
     }
 
     /*
@@ -653,7 +657,7 @@ public class BluetoothHandler extends Service {
             @Override
             public void run() {
                 Log.d(TAG, "Cooling off before scan.");
-                // Kick off delay before moving to next Command
+                // Kick off delay before moving to scan
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
@@ -663,7 +667,7 @@ public class BluetoothHandler extends Service {
                         completedCommand();
 
                     }
-                },BLE_SCAN_COOL_OFF_TIME); // Cool off period before starting next scan
+                }, bleScanCoolOffTimeSettingValue); // Cool off period before starting next scan
 
             }
         });
@@ -871,8 +875,30 @@ public class BluetoothHandler extends Service {
             commandQueueBusy = true;
             //nrTries = 0;
 
+            /*
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                //    central.scanForPeripheralsWithServices(new UUID[]{BLP_SERVICE_UUID, HTS_SERVICE_UUID, HRS_SERVICE_UUID, PLX_SERVICE_UUID, WSS_SERVICE_UUID, GLUCOSE_SERVICE_UUID});
+
+                // Prepare to stop after period
+                Log.i(TAG, "Starting Scan...");
+                // Queue up stop scan command
+                stopScan();
+
+                // TODO:  Scan for Apple devices using partial mfger data mask, and allowlisted beacons MAC
+                final List<ScanFilter> filters = new ArrayList<>();
+                ScanFilter filter = new ScanFilter.Builder().setManufacturerData(0x4C, new byte[] {}).build();
+                //ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress("DD:34:02:05:5F:06").build();
+                filters.add(filter);
+                central.scanForPeripheralsUsingFilters(filters);
+
+            }
+        },BLE_SCAN_COOL_OFF_TIME);
+
+             */
             Log.d(TAG, "Running next command...");
-            bleHandler.post(new Runnable() {
+            bleHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -883,7 +909,8 @@ public class BluetoothHandler extends Service {
                         Log.e(TAG, "ERROR: Command exception" + ex);
                     }
                 }
-            });
+            }, DELAY_BETWEEN_BT_COMMANDS);
+           // });
         }
     }
 
@@ -916,6 +943,16 @@ public class BluetoothHandler extends Service {
                 // Initialize filters based on the BLE beacon filters entered
                 targetModels.clear();
                 targetMACs.clear();
+
+                // Load latest settings before scan
+                Log.i(TAG, "Loading Settings...");
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+                bleScanPeriodTimeSettingValue = Integer.parseInt(prefs.getString("ble_scan_period", "30000")); // TODO: FIX HARDCODED HACK
+                bleScanCoolOffTimeSettingValue = Integer.parseInt(prefs.getString("cool_off_period", "0")); // TODO: Fix hack for reading integer being saved as strings in prefs
+                Log.d(TAG, "BLE Scan period: " + bleScanPeriodTimeSettingValue);
+                Log.d(TAG, "Cool Off Period: " + bleScanCoolOffTimeSettingValue);
+
+
                 // Apply multiple scan filters: Apple devices using partial mfger data mask, and allowlisted beacons MAC
                 final List<ScanFilter> filters = new ArrayList<>();
 
