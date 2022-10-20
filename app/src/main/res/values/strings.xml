@@ -7,9 +7,11 @@
 
 
     <!-- MQTT Preferences -->
-    <string name="ble_scan_period_setting_title">BLE scan period</string>
+    <string name="ble_scan_period_setting_title">BLE scan period (ms)</string>
     <string name="ble_cool_off_period_setting_title">Cool off period (ms)</string>
     <string name="mqtt_header">MQTT</string>
     <string name="MQTT_server_address_setting_title">MQTT Server Address</string>
     <string name="main_ble_settings_header">BLE</string>
+    <string name="MQTT_username_setting_title">MQTT username</string>
+    <string name="MQTT_password_setting_title">MQTT password</string>
 </resources>

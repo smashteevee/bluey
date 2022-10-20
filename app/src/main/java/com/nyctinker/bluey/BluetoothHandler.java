@@ -9,7 +9,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
-import android.content.Context;
+
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
@@ -94,23 +94,19 @@ public class BluetoothHandler extends Service {
     private boolean commandQueueBusy;
     Handler bleHandler = new Handler(Looper.getMainLooper());
 
-    private static int bleScanCoolOffTimeSettingValue = 0;
-    private static int bleScanPeriodTimeSettingValue = 30000;
-    private final static int DELAY_BETWEEN_BT_COMMANDS = 2000; // Delay between BT/GATT commands to avoid race issues - def. a hack
+    private static int bleScanCoolOffTimeSettingValue = 0; // Default - overridden in Settings
+    private static int bleScanPeriodTimeSettingValue = 30000; // Default - overridden in Settings
+    private final static int DELAY_BETWEEN_BT_COMMANDS = 2000; // MS Delay between BT/GATT commands to avoid race issues on older Android / BT- def. a hack
+    private final static int COMMAND_WATCHDOG_WAKEUP = 240000; // MS Watchdog wake to kill hanging BLE (usually GATT) commands due to some BT Race conditions
 
     // Intent constants
     public static final String MEASUREMENT_BEACON = "blessed.measurement.beacon";
     public static final String MEASUREMENT_EXTRA_PERIPHERAL = "blessed.measurement.peripheral";
 
-
     // UUIDs for the Device Information service (DIS)
     private static final UUID DIS_SERVICE_UUID = UUID.fromString("0000180A-0000-1000-8000-00805f9b34fb");
     private static final UUID MANUFACTURER_NAME_CHARACTERISTIC_UUID = UUID.fromString("00002A29-0000-1000-8000-00805f9b34fb");
     private static final UUID MODEL_NUMBER_CHARACTERISTIC_UUID = UUID.fromString("00002A24-0000-1000-8000-00805f9b34fb");
-
-    // UUIDs for the Current Time service (CTS)
-    private static final UUID CTS_SERVICE_UUID = UUID.fromString("00001805-0000-1000-8000-00805f9b34fb");
-    private static final UUID CURRENT_TIME_CHARACTERISTIC_UUID = UUID.fromString("00002A2B-0000-1000-8000-00805f9b34fb");
 
     // UUIDs for the Battery Service (BAS)
     private static final UUID BTS_SERVICE_UUID = UUID.fromString("0000180F-0000-1000-8000-00805f9b34fb");
@@ -132,11 +128,11 @@ public class BluetoothHandler extends Service {
 
 
     // MQTT variables
-    private static final String serverUri = "tcp://192.168.86.230:1883";
-    private static final String userName = "mqtt_client";
-    private static final String password = "Mqtt3dl3p";
-    private static final String appName = "app1";
-    private static final String clientId = userName + "@" + appName;
+   // private static final String mqttServerURI = "tcp://192.168.86.230:1883";
+    //private static final String mqttServerUsername = "mqtt_client";
+   // private static final String mqttServerPassword = "Mqtt3dl3p";
+    private static String lastMqttServerUsername = "";
+    private static String lastMqttServerPassword = "";
     private MqttAndroidClient mqttAndroidClient = null;
 
 
@@ -152,6 +148,16 @@ public class BluetoothHandler extends Service {
         return new String(hexChars);
     }
 
+    private void loadSettings() {
+
+        Log.i(TAG, "Loading Settings...");
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        bleScanPeriodTimeSettingValue = Integer.parseInt(prefs.getString("ble_scan_period", String.valueOf(bleScanPeriodTimeSettingValue))); // TODO: FIX HARDCODED HORRIBLE HACK
+        bleScanCoolOffTimeSettingValue = Integer.parseInt(prefs.getString("cool_off_period", String.valueOf(bleScanCoolOffTimeSettingValue))); // TODO: Fix hack for reading integer being saved as strings in prefs
+        Log.d(TAG, "Setting: BLE Scan period: " + bleScanPeriodTimeSettingValue);
+        Log.d(TAG, "Setting: Cool Off Period: " + bleScanCoolOffTimeSettingValue);
+
+    }
 
     @Override
     public void onCreate() {
@@ -162,69 +168,13 @@ public class BluetoothHandler extends Service {
         // Create BluetoothCentral if it doesn't exist
         if (central == null) {
             central = new BluetoothCentralManager(getApplicationContext(), bluetoothCentralManagerCallback, new Handler());
-
         }
 
-        // TODO Move to function
-        if (mqttAndroidClient == null) {
-            mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), serverUri, clientId);
-        }
-        mqttAndroidClient.setCallback(new MqttCallbackExtended() {
-            @Override
-            public void connectComplete(boolean reconnect, String serverURI) {
-                if (reconnect) {
-                    Log.i(TAG, "MQTT Reconnected to : " + serverURI);
-                } else {
-                    Log.i(TAG, "MQTT Connected to: " + serverURI);
-                }
-            }
+        // Load settings
+        loadSettings();
 
-            @Override
-            public void connectionLost(Throwable cause) {
-                Log.d(TAG, "The MQTT Connection was lost.");
-            }
-
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {}
-
-            @Override
-            public void deliveryComplete(IMqttDeliveryToken token) {}
-        });
-
-        MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-        mqttConnectOptions.setAutomaticReconnect(true);
-        mqttConnectOptions.setCleanSession(false);
-        mqttConnectOptions.setUserName(userName);
-        mqttConnectOptions.setPassword(password.toCharArray());
-
-        try {
-            mqttAndroidClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    try {
-                        asyncActionToken.getSessionPresent();
-                    } catch (Exception e) {
-                        String message = e.getMessage();
-                        Log.e(TAG, "MQTT error message is null " + String.valueOf(message == null));
-                    }
-
-                    Toast.makeText(getApplicationContext(), "connected", Toast.LENGTH_SHORT).show();
-                    DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
-                    disconnectedBufferOptions.setBufferEnabled(true);
-                    disconnectedBufferOptions.setBufferSize(100);
-                    disconnectedBufferOptions.setPersistBuffer(false);
-                    disconnectedBufferOptions.setDeleteOldestMessages(false);
-                    mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e(TAG, "Failed to connect to: " + serverUri + " - " + exception.getMessage());
-                }
-            });
-        } catch (Exception ex) {
-            Log.e(TAG, "MQTT excpetion: " + ex.getMessage());
-        }
+        // initalize MQTT connection
+        initializeMQTT();
     }
 
     @Override
@@ -367,31 +317,11 @@ public class BluetoothHandler extends Service {
             peripheral.requestMtu(185);
 
             // Request a new connection priority
-            peripheral.requestConnectionPriority(ConnectionPriority.HIGH);
+            peripheral.requestConnectionPriority(ConnectionPriority.HIGH); // TODO: Recondier if we need
 
             // Read manufacturer and model number from the Device Information Service
             peripheral.readCharacteristic(DIS_SERVICE_UUID, MANUFACTURER_NAME_CHARACTERISTIC_UUID);
             peripheral.readCharacteristic(DIS_SERVICE_UUID, MODEL_NUMBER_CHARACTERISTIC_UUID);
-
-
-            // Turn on notifications for Current Time Service and write it if possible
-          /*  BluetoothGattCharacteristic currentTimeCharacteristic = peripheral.getCharacteristic(CTS_SERVICE_UUID, CURRENT_TIME_CHARACTERISTIC_UUID);
-            if (currentTimeCharacteristic != null) {
-                peripheral.setNotify(currentTimeCharacteristic, true);
-
-                // If it has the write property we write the current time
-                if ((currentTimeCharacteristic.getProperties() & PROPERTY_WRITE) > 0) {
-                    // Write the current time unless it is an Omron device
-                    if (!isOmronBPM(peripheral.getName())) {
-                        BluetoothBytesParser parser = new BluetoothBytesParser();
-                        parser.setCurrentTime(Calendar.getInstance());
-                        peripheral.writeCharacteristic(currentTimeCharacteristic, parser.getValue(), WriteType.WITH_RESPONSE);
-                    }
-                }
-            }*/
-
-            // Try to turn on notifications for other characteristics
-            //peripheral.readCharacteristic(BTS_SERVICE_UUID, BATTERY_LEVEL_CHARACTERISTIC_UUID);
 
         }
 
@@ -400,12 +330,7 @@ public class BluetoothHandler extends Service {
             if (status == GattStatus.SUCCESS) {
                 final boolean isNotifying = peripheral.isNotifying(characteristic);
                 Log.d(TAG, "SUCCESS: Notify set to " + isNotifying + " for " + characteristic.getUuid());
-                //Timber.i("SUCCESS: Notify set to '%s' for %s", isNotifying, characteristic.getUuid());
-               /* if (characteristic.getUuid().equals(CONTOUR_CLOCK)) {
-                    writeContourClock(peripheral);
-                } else if (characteristic.getUuid().equals(GLUCOSE_RECORD_ACCESS_POINT_CHARACTERISTIC_UUID)) {
-                    writeGetAllGlucoseMeasurements(peripheral);
-                }*/
+
             } else {
 
                 Log.e(TAG, "ERROR: Changing notification state failed for " + characteristic.getUuid() + "(" + status + ")");
@@ -475,8 +400,6 @@ public class BluetoothHandler extends Service {
 
 
                 // }
-
-                // TODO - Flag that we're done connecting
 
                 // Done with the command as we've gotten model number
                 completedCommand();
@@ -563,24 +486,11 @@ public class BluetoothHandler extends Service {
                     Log.d(TAG, scanResult.toString());
 
 
-
-                    //central.stopScan();
-
-                    // GATT connect
-                    //central.connectPeripheral(peripheral, peripheralCallback);
                     // TODO: end scan earleir after finding known devices (otherwise timeout)
 
             }
 
 
-
-            //≈
-           /* if (peripheral.getName().contains("Contour") && peripheral.getBondState() == BondState.NONE) {
-                // Create a bond immediately to avoid double pairing popups
-                central.createBond(peripheral, peripheralCallback);
-            } else {*/
-            //   central.connectPeripheral(peripheral, peripheralCallback);
-            // }
 
         }
 
@@ -601,26 +511,6 @@ public class BluetoothHandler extends Service {
             // TODO: Close and re-open adapter as hack
         }
     };
-
-  /*  public static synchronized BluetoothHandler getInstance(Context context) {
-        if (instance == null) {
-            instance = new BluetoothHandler(context.getApplicationContext());
-        }
-        return instance;
-    }*/
-
-    /*private BluetoothHandler(Context context) {
-        this.context = context;
-
-
-        // Create BluetoothCentral
-        central = new BluetoothCentralManager(context, bluetoothCentralManagerCallback, new Handler());
-
-        // Scan for peripherals with a certain service UUIDs
-        central.startPairingPopupHack();
-        // Scan for all
-        startScan();
-    }*/
 
     // Method to turn off BLE scan
     private void stopScan() {
@@ -678,6 +568,110 @@ public class BluetoothHandler extends Service {
         } else {
             Log.e(TAG, "ERROR: Could not enqueue Cool Off command");
         }
+    }
+
+    /*
+        Method to re-init and connect to MQTT server
+     */
+    private void initializeMQTT() {
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        String mqttServerURI = prefs.getString("mqtt_server_address", "");
+        String mqttServerUsername = prefs.getString("mqtt_username", "");
+        String mqttServerPassword = prefs.getString("mqtt_password", "");
+
+        Log.d(TAG, "Loading Setting: MQTT server: " + mqttServerURI);
+        Log.d(TAG, "Loading Setting: MQTT username " + mqttServerUsername);
+        Log.d(TAG, "Loading Setting: MQTT password " + mqttServerPassword);
+
+        // Re-initialize any existing MQTT connection if it exists but URI, mqtt username or pw have changed
+        if (mqttAndroidClient != null && ((!mqttAndroidClient.getServerURI().matches(mqttServerURI)) ||
+                (!lastMqttServerUsername.matches(mqttServerUsername)) ||
+                (!lastMqttServerPassword.matches(mqttServerPassword)))){
+            mqttAndroidClient.unregisterResources();
+            mqttAndroidClient.close();
+            mqttAndroidClient.disconnect();
+            mqttAndroidClient.setCallback(null);
+            mqttAndroidClient = null;
+
+        }
+
+        // Track the most recent values of MQTT settings
+        lastMqttServerUsername = mqttServerUsername;
+        lastMqttServerPassword = mqttServerPassword;
+
+        // Setup callbacks if needed  // TODO: Change to better regexp validation
+        if (mqttAndroidClient == null &&
+                (mqttServerURI.contains("tcp://") ||
+                        mqttServerURI.contains("ws://")
+                ) &&
+                (mqttServerUsername.length() > 0) && (mqttServerPassword.length() > 0)){
+
+            mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), mqttServerURI, mqttServerUsername + "@" + "bluey");
+
+            mqttAndroidClient.setCallback(new MqttCallbackExtended() {
+                @Override
+                public void connectComplete(boolean reconnect, String serverURI) {
+                    if (reconnect) {
+                        Log.i(TAG, "MQTT Reconnected to : " + serverURI);
+                    } else {
+                        Log.i(TAG, "MQTT Connected to: " + serverURI);
+                    }
+                }
+
+                @Override
+                public void connectionLost(Throwable cause) {
+                    Log.d(TAG, "The MQTT Connection was lost.");
+                }
+
+                @Override
+                public void messageArrived(String topic, MqttMessage message) throws Exception {
+                }
+
+                @Override
+                public void deliveryComplete(IMqttDeliveryToken token) {
+                }
+            });
+        }
+
+        // Attempt connect if not already
+        if (mqttAndroidClient != null && !mqttAndroidClient.isConnected()) {
+            MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
+            mqttConnectOptions.setAutomaticReconnect(true);
+            mqttConnectOptions.setCleanSession(true);
+            mqttConnectOptions.setUserName(mqttServerUsername);
+            mqttConnectOptions.setPassword(mqttServerPassword.toCharArray());
+
+            try {
+                mqttAndroidClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
+                    @Override
+                    public void onSuccess(IMqttToken asyncActionToken) {
+                        try {
+                            asyncActionToken.getSessionPresent();
+                        } catch (Exception e) {
+                            String message = e.getMessage();
+                            Log.e(TAG, "MQTT error message is null " + String.valueOf(message == null));
+                        }
+
+                        Toast.makeText(getApplicationContext(), "connected", Toast.LENGTH_SHORT).show();
+                        DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
+                        disconnectedBufferOptions.setBufferEnabled(true);
+                        disconnectedBufferOptions.setBufferSize(100);
+                        disconnectedBufferOptions.setPersistBuffer(false);
+                        disconnectedBufferOptions.setDeleteOldestMessages(false);
+                        mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
+                    }
+
+                    @Override
+                    public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                        Log.e(TAG, "Failed to connect to: " + mqttServerURI + " - " + exception.getMessage());
+                    }
+                });
+            } catch (Exception ex) {
+                Log.e(TAG, "MQTT excpetion: " + ex.getMessage());
+            }
+        }
+
     }
     private void processMQTTMessages() {
         // TODO: Refactor
@@ -778,7 +772,7 @@ public class BluetoothHandler extends Service {
                 }
 
             }
-        }, 240000);  // TODO: Put in constant before watchdog wakes
+        }, COMMAND_WATCHDOG_WAKEUP);  // Time before watchdog wakes
 
     }
 
@@ -875,28 +869,6 @@ public class BluetoothHandler extends Service {
             commandQueueBusy = true;
             //nrTries = 0;
 
-            /*
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                //    central.scanForPeripheralsWithServices(new UUID[]{BLP_SERVICE_UUID, HTS_SERVICE_UUID, HRS_SERVICE_UUID, PLX_SERVICE_UUID, WSS_SERVICE_UUID, GLUCOSE_SERVICE_UUID});
-
-                // Prepare to stop after period
-                Log.i(TAG, "Starting Scan...");
-                // Queue up stop scan command
-                stopScan();
-
-                // TODO:  Scan for Apple devices using partial mfger data mask, and allowlisted beacons MAC
-                final List<ScanFilter> filters = new ArrayList<>();
-                ScanFilter filter = new ScanFilter.Builder().setManufacturerData(0x4C, new byte[] {}).build();
-                //ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress("DD:34:02:05:5F:06").build();
-                filters.add(filter);
-                central.scanForPeripheralsUsingFilters(filters);
-
-            }
-        },BLE_SCAN_COOL_OFF_TIME);
-
-             */
             Log.d(TAG, "Running next command...");
             bleHandler.postDelayed(new Runnable() {
                 @Override
@@ -945,13 +917,10 @@ public class BluetoothHandler extends Service {
                 targetMACs.clear();
 
                 // Load latest settings before scan
-                Log.i(TAG, "Loading Settings...");
-                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-                bleScanPeriodTimeSettingValue = Integer.parseInt(prefs.getString("ble_scan_period", "30000")); // TODO: FIX HARDCODED HACK
-                bleScanCoolOffTimeSettingValue = Integer.parseInt(prefs.getString("cool_off_period", "0")); // TODO: Fix hack for reading integer being saved as strings in prefs
-                Log.d(TAG, "BLE Scan period: " + bleScanPeriodTimeSettingValue);
-                Log.d(TAG, "Cool Off Period: " + bleScanCoolOffTimeSettingValue);
+               loadSettings();
 
+               // Re-ini MQTT connection if settings have changed
+                initializeMQTT();
 
                 // Apply multiple scan filters: Apple devices using partial mfger data mask, and allowlisted beacons MAC
                 final List<ScanFilter> filters = new ArrayList<>();

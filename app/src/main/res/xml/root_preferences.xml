@@ -9,7 +9,7 @@
 
         <EditTextPreference
             app:key="cool_off_period"
-            app:defaultValue="30000"
+            app:defaultValue="10000"
             app:title="@string/ble_cool_off_period_setting_title"
             app:useSimpleSummaryProvider="true" />
 
@@ -23,6 +23,16 @@
             app:key="mqtt_server_address"
             app:title="@string/MQTT_server_address_setting_title"
             app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:key="mqtt_username"
+            app:title="@string/MQTT_username_setting_title"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:key="mqtt_password"
+            app:title="@string/MQTT_password_setting_title"
+            app:useSimpleSummaryProvider="true" />
+
+
 
 
     </PreferenceCategory>
