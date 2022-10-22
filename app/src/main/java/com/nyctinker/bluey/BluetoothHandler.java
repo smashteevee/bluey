@@ -461,21 +461,19 @@ public class BluetoothHandler extends Service {
                 if (appleData[0] == 0x10 && appleData[1] == 0x05) {
                     Log.d(TAG,"Found Apple device with Nearby Info: " + peripheral.getAddress() );
                     Log.d(TAG, "Scan contains mfg data: " + bytesToHex(appleData));
-                    Log.d(TAG, "Nearby info Status Flag is: " + appleData[2]);
-                    Log.d(TAG, "Nearby info Action is: " + appleData[3]);
+                    Log.d(TAG, "Nearby info Status Flag is: " + Integer.toHexString(appleData[2]));
+                    Log.d(TAG, "Nearby info Action is: " + Integer.toHexString(appleData[3]));
+                    Log.d(TAG, "Raw bytes: " + bytesToHex(scanResult.getScanRecord().getBytes()));
 
-                    // Add to our collection of iOS Devices with Nearby Info for later processing
+                    // Add to our collection of iOS Devices with Nearby Info for later GATT connections
                     scannedIOSPeripherals.put(peripheral.getAddress(), peripheral);
 
-                    // GATT connect to get Model, Make info
-                    //central.connectPeripheral(peripheral, peripheralCallback);
                 }
             } else if ( targetMACs.contains(peripheral.getAddress())) {
                 Log.d(TAG, "Found targeted MAC address:");
                 Log.d(TAG, scanResult.toString());
 
-                // TODO: add to method
-                // Add it to our collection to send mqtt for
+                // Add it to our collection of found devices
                 BLEBeacon bleBeacon = new BLEBeacon(peripheral);
                 bleBeacon.modelName = null; // null => regular beacon
                 bleBeacon.rssi = scanResult.getRssi();
@@ -524,11 +522,18 @@ public class BluetoothHandler extends Service {
                 // Signal we're done with previous queued Scan command
                 completedCommand();
 
-                // Processing of GATT connections
-                processScannedPeripherals();
+                // Sending MQTT messages for found devices so far (through just scans)
+                publishMQTTMessages();
 
-                // Process for sending found devices to MQTT
-                processMQTTMessages();
+                // Make GATT connections to any if needed for Model-based filter
+                connectToScannedPeripherals();
+
+                // Sending MQTT messages for any other found devices (though GATT connections)
+                publishMQTTMessages();
+
+                // Clean up
+                scannedIOSPeripherals.clear();
+                lastRssi = 0;
 
                 // Cool off before next scan
                 coolOff();
@@ -673,7 +678,10 @@ public class BluetoothHandler extends Service {
         }
 
     }
-    private void processMQTTMessages() {
+    /*
+    * Method to fire off MQTT messages for found devices
+     */
+    private void publishMQTTMessages() {
         // TODO: Refactor
         // Enqueue the MQTT processing
         Log.d(TAG, "Enqueuing mqtt process...");
@@ -713,10 +721,8 @@ public class BluetoothHandler extends Service {
 
                 // TODO:  Add completed done command in MQTT callback
 
-                // TODO: Cleanup method
-                scannedIOSPeripherals.clear();
+                // Clean up found devices as we've published them
                 foundDevices.clear();
-                lastRssi = 0;
 
                 // We done, complete the command
                 completedCommand();
@@ -778,14 +784,13 @@ public class BluetoothHandler extends Service {
 
 
     // Method for processing scanned devices by GATT connecting
-    private void processScannedPeripherals() {
+    private void connectToScannedPeripherals() {
         boolean result;
-        // TODO
-        // TODO: For any detected target MAC addresss devices, fire off MQTT
-        Log.d(TAG, "processing scanned peripheraps...");
-        // TODO: For scanned IOS devices with nearby Info, see if detected any last known address, then fire off MQTT
 
-        // If none, then we connect to each find read characteristic Model Number
+        // For discovered Apple devices with nearby Info
+        Log.d(TAG, "processing scanned peripheraps...");
+
+        // Connect to each find read characteristic Model Number
         for (Map.Entry<String, BluetoothPeripheral> entry : scannedIOSPeripherals.entrySet()) {
             final String key = entry.getKey().toString();
             final BluetoothPeripheral iosBluetoothPeripheral = entry.getValue();
