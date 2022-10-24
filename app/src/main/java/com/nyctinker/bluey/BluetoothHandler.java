@@ -123,14 +123,12 @@ public class BluetoothHandler extends Service {
     private @NotNull Map<String, BLEBeacon> foundDevices = new ConcurrentHashMap<>();
     private ArrayList<String> targetMACs = new ArrayList<>();
     private ArrayList<String> targetModels = new ArrayList<>();
+    private @NotNull Map<String, String> lastSeenModelMACs = new ConcurrentHashMap<>();
 
     Instant lastCommandStart = null;
 
 
     // MQTT variables
-   // private static final String mqttServerURI = "tcp://192.168.86.230:1883";
-    //private static final String mqttServerUsername = "mqtt_client";
-   // private static final String mqttServerPassword = "Mqtt3dl3p";
     private static String lastMqttServerUsername = "";
     private static String lastMqttServerPassword = "";
     private MqttAndroidClient mqttAndroidClient = null;
@@ -391,11 +389,8 @@ public class BluetoothHandler extends Service {
 
                 // Add it to our collection, if it was a target Model
                 if (targetModels.contains(modelNumber)) {
-                    BLEBeacon bleBeacon = new BLEBeacon(peripheral);
-                    bleBeacon.modelName = modelNumber;
                     // TODO get RSSI in a less hacky way;
-                    bleBeacon.rssi = lastRssi;
-                    foundDevices.put(peripheral.getAddress(), bleBeacon);
+                    markDeviceFound(peripheral, modelNumber, lastRssi);
                 }
 
 
@@ -421,6 +416,21 @@ public class BluetoothHandler extends Service {
 
     };
 
+    /*
+    * Convenience function to mark an Item as Found
+     */
+    private void markDeviceFound(BluetoothPeripheral peripheral, String modelNumber, int rssi) {
+        BLEBeacon bleBeacon = new BLEBeacon(peripheral);
+        bleBeacon.modelName = modelNumber;
+        bleBeacon.rssi = rssi;
+        foundDevices.put(peripheral.getAddress(), bleBeacon);
+
+        // Note the most recent MAC address for the model, if any, and cross-off targetModel since we just found it
+        if (!TextUtils.isEmpty(modelNumber)) {
+            lastSeenModelMACs.put(modelNumber, peripheral.getAddress());
+            targetModels.remove(modelNumber);
+        }
+    }
     // Callback for central
     private final BluetoothCentralManagerCallback bluetoothCentralManagerCallback = new BluetoothCentralManagerCallback() {
 
@@ -452,7 +462,7 @@ public class BluetoothHandler extends Service {
 
         @Override
         public void onDiscoveredPeripheral(@NotNull BluetoothPeripheral peripheral, @NotNull ScanResult scanResult) {
-
+            String lastSeenModel;
             byte[] appleData = scanResult.getScanRecord().getManufacturerSpecificData(0x004c); // filter to apple data
             if (appleData != null && appleData.length > 4) {
 
@@ -465,26 +475,31 @@ public class BluetoothHandler extends Service {
                     Log.d(TAG, "Nearby info Action is: " + Integer.toHexString(appleData[3]));
                     Log.d(TAG, "Raw bytes: " + bytesToHex(scanResult.getScanRecord().getBytes()));
 
-                    // Add to our collection of iOS Devices with Nearby Info for later GATT connections
-                    scannedIOSPeripherals.put(peripheral.getAddress(), peripheral);
-
+                    // If the MAC was seen previously and is tied to a Target Model, count it as Found (so we can skip GATT connect)
+                    if (lastSeenModelMACs.containsValue(peripheral.getAddress())) {
+                        // Find the Model it's tied to
+                        lastSeenModel = findModel(peripheral.getAddress());
+                        // Since it is belongs to a model we're looking for, let's just mark it found
+                        if (!TextUtils.isEmpty(lastSeenModel) && targetModels.contains(lastSeenModel)) {
+                            // Add it to our collection of found devices
+                            markDeviceFound(peripheral, lastSeenModel, scanResult.getRssi());
+                        }
+                    } else {
+                        // Else Add to our collection of iOS Devices to connect later with GATT
+                        scannedIOSPeripherals.put(peripheral.getAddress(), peripheral);
+                    }
                 }
             } else if ( targetMACs.contains(peripheral.getAddress())) {
                 Log.d(TAG, "Found targeted MAC address:");
                 Log.d(TAG, scanResult.toString());
 
                 // Add it to our collection of found devices
-                BLEBeacon bleBeacon = new BLEBeacon(peripheral);
-                bleBeacon.modelName = null; // null => regular beacon
-                bleBeacon.rssi = scanResult.getRssi();
-                foundDevices.put(peripheral.getAddress(), bleBeacon);
+                markDeviceFound(peripheral, null, scanResult.getRssi());
 
             } else {
                     Log.d(TAG, "Found other device:");
                     Log.d(TAG, scanResult.toString());
 
-
-                    // TODO: end scan earleir after finding known devices (otherwise timeout)
 
             }
 
@@ -758,6 +773,21 @@ public class BluetoothHandler extends Service {
         return m.find();
     }
 
+    /*
+        * Convenience function to brute-force find the key of the matching value given
+     */
+    private String findModel(String macAddress) {
+        // Find the first key with the matching value
+        for (Map.Entry<String, String> entry : lastSeenModelMACs.entrySet()) {
+            String modelName = entry.getKey().toString();
+            String lastMAC = entry.getValue();
+
+            if (lastMAC.equals(macAddress)) {
+                return modelName;
+            }
+        }
+        return null;
+    }
     /**
      * Convenience function to unblock a hanging GATT command that doesn't return after awhile
      * by signalling to end the current command
@@ -787,18 +817,14 @@ public class BluetoothHandler extends Service {
     private void connectToScannedPeripherals() {
         boolean result;
 
-        // For discovered Apple devices with nearby Info
         Log.d(TAG, "processing scanned peripheraps...");
 
-        // Connect to each find read characteristic Model Number
+        // Connect to each Apple device to find read characteristic Model Number
         for (Map.Entry<String, BluetoothPeripheral> entry : scannedIOSPeripherals.entrySet()) {
             final String key = entry.getKey().toString();
             final BluetoothPeripheral iosBluetoothPeripheral = entry.getValue();
 
             Log.d(TAG, "processing: " + iosBluetoothPeripheral.getAddress());
-
-            // Copy into our lightweight Hash of iOS peripherals for convenience
-
 
             // Enqueue the connect command now
             result = commandQueue.add(new Runnable() {
@@ -806,13 +832,19 @@ public class BluetoothHandler extends Service {
                 public void run() {
                     Log.d(TAG, "connecting to peripheral..." + key + " with state: " + iosBluetoothPeripheral.getState().toString());
                     if (iosBluetoothPeripheral.getState() != ConnectionState.CONNECTED && iosBluetoothPeripheral.getState() != ConnectionState.CONNECTING) {
-                        central.connectPeripheral(iosBluetoothPeripheral, peripheralCallback);
-                        setupWatchDog();
+                        // Only try to connect, if we are still looking for target models
+                        if (targetModels.size() > 0) {
+                            central.connectPeripheral(iosBluetoothPeripheral, peripheralCallback);
+                            setupWatchDog();
+                        } else {
+                            // Close out the Connect command as we're skipping it
+                            completedCommand();
+                        }
                     }
                 }
             });
 
-            if(result) {
+            if (result) {
                 // Queue up to receive next command
                 nextCommand();
 
@@ -832,7 +864,7 @@ public class BluetoothHandler extends Service {
                     }
                 });
 
-                if(result) {
+                if (result) {
                     // Queue up to receive next command
                     nextCommand();
                 } else {
@@ -842,10 +874,10 @@ public class BluetoothHandler extends Service {
             } else {
                 Log.e(TAG, "ERROR: Could not enqueue Connect Peripheral command");
             }
-
-
-
         }
+
+
+
 
 
 
@@ -933,7 +965,7 @@ public class BluetoothHandler extends Service {
                 for (String bleItem : bleFilterList) {
                     Log.d(TAG, "Processing " + bleItem);
                     if (validateMAC(bleItem)) {
-                        // If it's a valid MAC address add to MAC scan filter
+                        // If it's a valid MAC address, add to MAC scan filter
                         ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress(bleItem).build();
                         filters.add(filterMac);
                         if (!targetMACs.contains(bleItem)) {
