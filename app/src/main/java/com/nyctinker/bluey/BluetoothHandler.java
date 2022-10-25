@@ -113,6 +113,8 @@ public class BluetoothHandler extends Service {
     private static final UUID BATTERY_LEVEL_CHARACTERISTIC_UUID = UUID.fromString("00002A19-0000-1000-8000-00805f9b34fb");
     private static final String CHANNEL_ID = "BLE Scan Channel";
 
+    private static final String APPLE_BLE_IPHONE_HEADER = "02011"; // Per https://github.com/hexway/apple_bleee/blob/master/ble_read_state.py#L69
+
     private static int lastRssi = 0;
 
     // Local variables
@@ -463,6 +465,7 @@ public class BluetoothHandler extends Service {
         @Override
         public void onDiscoveredPeripheral(@NotNull BluetoothPeripheral peripheral, @NotNull ScanResult scanResult) {
             String lastSeenModel;
+
             byte[] appleData = scanResult.getScanRecord().getManufacturerSpecificData(0x004c); // filter to apple data
             if (appleData != null && appleData.length > 4) {
 
@@ -484,8 +487,10 @@ public class BluetoothHandler extends Service {
                             // Add it to our collection of found devices
                             markDeviceFound(peripheral, lastSeenModel, scanResult.getRssi());
                         }
-                    } else {
-                        // Else Add to our collection of iOS Devices to connect later with GATT
+
+                    } else if (bytesToHex(scanResult.getScanRecord().getBytes()).contains(APPLE_BLE_IPHONE_HEADER)){
+
+                        // Else If it's not a Macbook, add it to our collection of Apple Devices to connect later with GATT
                         scannedIOSPeripherals.put(peripheral.getAddress(), peripheral);
                     }
                 }
@@ -830,10 +835,11 @@ public class BluetoothHandler extends Service {
             result = commandQueue.add(new Runnable() {
                 @Override
                 public void run() {
-                    Log.d(TAG, "connecting to peripheral..." + key + " with state: " + iosBluetoothPeripheral.getState().toString());
                     if (iosBluetoothPeripheral.getState() != ConnectionState.CONNECTED && iosBluetoothPeripheral.getState() != ConnectionState.CONNECTING) {
                         // Only try to connect, if we are still looking for target models
                         if (targetModels.size() > 0) {
+                            Log.d(TAG, "connecting to peripheral..." + key + " with state: " + iosBluetoothPeripheral.getState().toString());
+
                             central.connectPeripheral(iosBluetoothPeripheral, peripheralCallback);
                             setupWatchDog();
                         } else {
