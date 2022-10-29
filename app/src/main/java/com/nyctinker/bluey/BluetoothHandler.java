@@ -48,6 +48,7 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -128,6 +129,7 @@ public class BluetoothHandler extends Service {
     private @NotNull Map<String, String> lastSeenModelMACs = new ConcurrentHashMap<>();
 
     Instant lastCommandStart = null;
+    Instant passStart = null;
 
 
     // MQTT variables
@@ -727,6 +729,10 @@ public class BluetoothHandler extends Service {
                         payload.put("rssi", foundDevice.rssi);
                         // TODO: Replace experimental hack for distance
                         payload.put("distance", Math.pow(10, (-63 - (foundDevice.rssi))/(10*2.1) ));
+                        // Debug info
+                        if (passStart != null) {
+                            payload.put("timeSinceScan", Duration.between(passStart, Instant.now()).toMillis());
+                        }
                         String message = payload.toString();
 
                         mqttAndroidClient.publish(topic, message.getBytes(),0,false);
@@ -948,7 +954,8 @@ public class BluetoothHandler extends Service {
         Boolean result = commandQueue.add(new Runnable() {
             @Override
             public void run() {
-                //    central.scanForPeripheralsWithServices(new UUID[]{BLP_SERVICE_UUID, HTS_SERVICE_UUID, HRS_SERVICE_UUID, PLX_SERVICE_UUID, WSS_SERVICE_UUID, GLUCOSE_SERVICE_UUID});
+                // Track when we started
+                passStart = Instant.now();
 
                 // Prepare to stop after period
                 Log.i(TAG, "Starting Scan...");
@@ -985,9 +992,22 @@ public class BluetoothHandler extends Service {
                         }
                     }
                 }
-                // Setup Apple mfger Scan filter if 1 or more Apple Models entered
+                // Scan filter if 1 or more Apple Models entered
                 if (targetModels.size() > 0) {
-                    ScanFilter appleFilter = new ScanFilter.Builder().setManufacturerData(0x4C, new byte[] {}).build();
+                    // Setup Apple manufacturer and mask for Nearby Info, Watch info per https://github.com/hexway/apple_bleee/blob/1f8022959be660b561e6004b808dd93fa252bc90/ble_read_state.py#L642
+                    //TODO Cleanup in function
+                    // filter to something like 1005xxx8
+                    ByteBuffer nearbyInfo = ByteBuffer.allocate(4);
+                    ByteBuffer nearbyWatch = ByteBuffer.allocate(4);
+                    nearbyInfo.put(0, (byte)0x10);
+                    nearbyInfo.put(1, (byte)0x05);
+                    nearbyInfo.put(2, (byte)0x21);
+                    nearbyInfo.put(3, (byte)0x18);
+                    nearbyWatch.put(0, (byte)0xFF);
+                    nearbyWatch.put(1, (byte)0xFF);
+                    nearbyWatch.put(2, (byte)0x00);
+                    nearbyWatch.put(3, (byte)0x0F);
+                    ScanFilter appleFilter = new ScanFilter.Builder().setManufacturerData(0x4C, nearbyInfo.array(), nearbyWatch.array()).build();
                     filters.add(appleFilter);
                 }
 
@@ -1006,27 +1026,7 @@ public class BluetoothHandler extends Service {
         }
 
 
-       /* handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                //    central.scanForPeripheralsWithServices(new UUID[]{BLP_SERVICE_UUID, HTS_SERVICE_UUID, HRS_SERVICE_UUID, PLX_SERVICE_UUID, WSS_SERVICE_UUID, GLUCOSE_SERVICE_UUID});
 
-                // Prepare to stop after period
-                Log.i(TAG, "Starting Scan...");
-                // Queue up stop scan command
-                stopScan();
-
-                // TODO:  Scan for Apple devices using partial mfger data mask, and allowlisted beacons MAC
-                final List<ScanFilter> filters = new ArrayList<>();
-                ScanFilter filter = new ScanFilter.Builder().setManufacturerData(0x4C, new byte[] {}).build();
-                //ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress("DD:34:02:05:5F:06").build();
-                filters.add(filter);
-                central.scanForPeripheralsUsingFilters(filters);
-
-            }
-        },BLE_SCAN_COOL_OFF_TIME); // Cool off period before starting next scan
-
-        */
     }
 
 }
