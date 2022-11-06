@@ -25,6 +25,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.Toast;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -78,7 +79,14 @@ public class MainActivity extends AppCompatActivity {
         bleItemList = new ArrayList<>();
 
         // Tie BLEItemlist to adapter
-        bleItemRVAdapter = new BLEItemRVAdapter(bleItemList);
+        bleItemRVAdapter = new BLEItemRVAdapter(bleItemList, new BLEItemRVAdapter.OnItemLongClickListener() {
+            @Override public void onItemLongClick(String item) {
+                Toast.makeText(getApplicationContext(), "Deleting: " + item, Toast.LENGTH_SHORT).show();
+                removeItem(item);
+            }
+        });
+
+
 
         // Set adapter to our recycler view
         bleItemRV.setAdapter(bleItemRVAdapter);
@@ -129,17 +137,43 @@ public class MainActivity extends AppCompatActivity {
             // Notify adapter
             bleItemRVAdapter.notifyDataSetChanged();
 
-            // Update service with latest list // TODO: Clean up in function
-            Intent intent = new Intent(this, BluetoothHandler.class);
-            intent.setAction(BluetoothHandler.ACTION_UPDATE_FOREGROUND_SERVICE);
-            intent.putStringArrayListExtra("BLEFilterList", bleItemList);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent);
-            } else {
-                startService(intent);
-            }
+            // Update service with latest list
+            updateBLEFilterList();
 
 
+        }
+    }
+
+    /*
+       Convenience function to add item to RV
+    */
+    private void removeItem(String item) {
+
+        if (!item.isEmpty()) {
+
+            bleItemList.remove(item);
+            // Notify adapter
+            bleItemRVAdapter.notifyDataSetChanged();
+
+            // Update service with latest list
+            updateBLEFilterList();
+
+
+        }
+    }
+
+    /*
+     * Method to send the latest filterlist to Foreground service
+     */
+    private void updateBLEFilterList() {
+        // Update service with latest list
+        Intent intent = new Intent(this, BluetoothHandler.class);
+        intent.setAction(BluetoothHandler.ACTION_UPDATE_FOREGROUND_SERVICE);
+        intent.putStringArrayListExtra("BLEFilterList", bleItemList);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
         }
     }
 

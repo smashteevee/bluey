@@ -5,6 +5,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -13,10 +15,16 @@ import java.util.ArrayList;
 // Uses code from https://www.geeksforgeeks.org/how-to-update-recycleview-adapter-data-in-android/
 public class BLEItemRVAdapter extends RecyclerView.Adapter<BLEItemRVAdapter.ViewHolder> {
     private ArrayList<String> bleItemRVModalArrayList;
+    private final OnItemLongClickListener listener;
+
+    public interface OnItemLongClickListener {
+        void onItemLongClick(String item);
+    }
 
 
-    public BLEItemRVAdapter(ArrayList<String> bleItemRVModalArrayList) {
+    public BLEItemRVAdapter(ArrayList<String> bleItemRVModalArrayList, OnItemLongClickListener listener) {
         this.bleItemRVModalArrayList = bleItemRVModalArrayList;
+        this.listener = listener;
     }
 
     @NonNull
@@ -31,8 +39,10 @@ public class BLEItemRVAdapter extends RecyclerView.Adapter<BLEItemRVAdapter.View
 
     @Override
     public void onBindViewHolder(@NonNull BLEItemRVAdapter.ViewHolder holder, int position) {
-        holder.bleItemTV.setText(bleItemRVModalArrayList.get(position));
+        holder.bind(bleItemRVModalArrayList.get(position), listener);
     }
+
+
 
     @Override
     public int getItemCount() {
@@ -47,6 +57,21 @@ public class BLEItemRVAdapter extends RecyclerView.Adapter<BLEItemRVAdapter.View
             super(itemView);
             // Initialize
             bleItemTV = itemView.findViewById(R.id.idTVBLEItemName);
+
         }
+
+        public void bind(final String item, final OnItemLongClickListener listener) {
+            bleItemTV.setText(item);
+            itemView.setOnLongClickListener(new View.OnLongClickListener() {
+
+                @Override
+                public boolean onLongClick(View view) {
+                    listener.onItemLongClick(item);
+                    return true;
+                }
+            });
+        }
+
+
     }
 }
