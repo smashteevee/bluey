@@ -10,12 +10,14 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
@@ -69,6 +71,9 @@ import info.mqtt.android.service.MqttAndroidClient;
 * Borrows liberally from example code in BLESSED BLE library https://github.com/weliem/blessed-android
 */
 public class BluetoothHandler extends Service {
+    PowerManager powerManager;
+    PowerManager.WakeLock wakeLock;
+
     public static class BLEBeacon {
 
 
@@ -166,7 +171,6 @@ public class BluetoothHandler extends Service {
         super.onCreate();
         Log.d(TAG, "My foreground service onCreate().");
 
-
         // Create BluetoothCentral if it doesn't exist
         if (central == null) {
             central = new BluetoothCentralManager(getApplicationContext(), bluetoothCentralManagerCallback, new Handler());
@@ -178,6 +182,7 @@ public class BluetoothHandler extends Service {
         // initalize MQTT connection
         initializeMQTT();
     }
+
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -273,10 +278,16 @@ public class BluetoothHandler extends Service {
         // Build the notification.
         Notification notification = builder.build();
 
+        // Get partial wakelock // TODO: FIGURE SOMETHING OUT BETTER
+        powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Bluey::WakelockTag");
+        wakeLock.acquire();
+
         // Start foreground service.
         startForeground(1, notification);
 
-        // Start Scan for peripherals with a certain service UUIDs
+
+        // Start Scan for peripherals
         central.startPairingPopupHack();
 
         // Scan for all
@@ -300,6 +311,9 @@ public class BluetoothHandler extends Service {
 
         // Stop the foreground service.
         stopSelf();
+
+        // Release wakelock
+        wakeLock.release();
     }
 
    /* private void createNotificationChannel() {
