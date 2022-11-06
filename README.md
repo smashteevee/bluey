@@ -8,7 +8,7 @@ I built this for myself but realize it may be useful for others.
 ## Goals
  * Detect home presence of Apple Watches which have rotating MAC addresses
  * Keep functionality simple (this is also due to this being my first-ever Android app)
- * Sends MQTT to Home Assistant, where one can create sensors and logic for use in presence detection
+ * Flexibility to integrate to home automation: publishes detected devices with MQTT or broadcasts intents for Tasker
 
 ## Key Features
  * Runs on Android 6 and up?
