@@ -50,6 +50,6 @@ dependencies {
     implementation 'com.github.hannesa2:paho.mqtt.android:3.5.0'
 
     // Older OSs
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.0.9'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
 
 }
