@@ -48,8 +48,8 @@ public class SettingsActivity extends AppCompatActivity {
                     editText.setSingleLine();
                 }
             });
-            androidx.preference.EditTextPreference bleScanPreference = getPreferenceManager().findPreference("mqtt_device_name");
-            bleScanPreference.setOnBindEditTextListener(new androidx.preference.EditTextPreference.OnBindEditTextListener() {
+            androidx.preference.EditTextPreference mqttDeviceNamePreference = getPreferenceManager().findPreference("mqtt_device_name");
+            mqttDeviceNamePreference.setOnBindEditTextListener(new androidx.preference.EditTextPreference.OnBindEditTextListener() {
                 @Override
                 public void onBindEditText(@NonNull EditText editText) {
                     editText.setSingleLine();
