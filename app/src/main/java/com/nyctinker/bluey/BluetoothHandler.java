@@ -140,6 +140,7 @@ public class BluetoothHandler extends Service {
     // MQTT variables
     private static String lastMqttServerUsername = "";
     private static String lastMqttServerPassword = "";
+    private static String blueyDeviceName = "";
     private MqttAndroidClient mqttAndroidClient = null;
 
 
@@ -163,6 +164,7 @@ public class BluetoothHandler extends Service {
         bleScanCoolOffTimeSettingValue = Integer.parseInt(prefs.getString("cool_off_period", String.valueOf(bleScanCoolOffTimeSettingValue))); // TODO: Fix hack for reading integer being saved as strings in prefs
         Log.d(TAG, "Setting: BLE Scan period: " + bleScanPeriodTimeSettingValue);
         Log.d(TAG, "Setting: Cool Off Period: " + bleScanCoolOffTimeSettingValue);
+        blueyDeviceName = prefs.getString("mqtt_device_name", blueyDeviceName);
 
     }
 
@@ -735,7 +737,7 @@ public class BluetoothHandler extends Service {
                     // topic: bluey/Watch5,11 (if apple model) or topic: bluey/[mac_address]
                     // message: { "id":"[mac address]", "rssi":-84}
                     String modelName = !(TextUtils.isEmpty(foundDevice.modelName)) ? foundDevice.modelName : foundDevice.address;
-                    String topic = "bluey/" + modelName;
+                    String topic = "bluey/" + blueyDeviceName + "/" + modelName;
                     JSONObject payload = new JSONObject();
 
                     try {
