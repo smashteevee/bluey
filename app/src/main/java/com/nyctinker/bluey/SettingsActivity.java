@@ -37,7 +37,7 @@ public class SettingsActivity extends AppCompatActivity {
                 @Override
                 public void onBindEditText(@NonNull EditText editText) {
                     editText.setInputType(InputType.TYPE_CLASS_NUMBER);
-
+                    editText.setSingleLine();
                 }
             });
             androidx.preference.EditTextPreference bleScanPreference = getPreferenceManager().findPreference("ble_scan_period");
@@ -45,7 +45,14 @@ public class SettingsActivity extends AppCompatActivity {
                 @Override
                 public void onBindEditText(@NonNull EditText editText) {
                     editText.setInputType(InputType.TYPE_CLASS_NUMBER);
-
+                    editText.setSingleLine();
+                }
+            });
+            androidx.preference.EditTextPreference bleScanPreference = getPreferenceManager().findPreference("mqtt_device_name");
+            bleScanPreference.setOnBindEditTextListener(new androidx.preference.EditTextPreference.OnBindEditTextListener() {
+                @Override
+                public void onBindEditText(@NonNull EditText editText) {
+                    editText.setSingleLine();
                 }
             });
         }
