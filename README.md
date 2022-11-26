@@ -11,7 +11,7 @@ I built this for myself but realize it may be useful for others.
  * Flexibility to integrate to home automation: publishes detected devices with MQTT or broadcasts intents for Tasker
 
 ## Key Features
- * Runs on Android 6 and up?
+ * Runs on Android 6 and up (API 23+)
  * Supports detection of Apple Watches by specifying models X through Y
  * Supports BLE beacons through MAC addresses
  * Adjustable settings for scan period and cool-off
@@ -33,6 +33,10 @@ I built this for myself but realize it may be useful for others.
   * Runs as foreground service so can run with screen off
   * Uses the amazing BLESSED BLE library to abstract much of the Android BLE library
   * MQTT format is this. You can create a MQTT sensor in Home Assistant like this
+  * Tested on: 
+   * Pixel 2 XL (Android 11, API 30)
+   * Nexus 4 (Lineage OS, Android 8.1, API 27)
+   * Nexus 5 (Android 6.0, API 23)
   
  ## Tips
   * YMMV - May need to turn off Battery Optimization to keep running when device is sleep. If having issues with service running, look for tips in dontkillmyapp.com
