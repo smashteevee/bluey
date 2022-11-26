@@ -15,4 +15,5 @@
     <string name="MQTT_username_setting_title">MQTT username</string>
     <string name="MQTT_password_setting_title">MQTT password</string>
     <string name="mqtt_device_name_setting_title">Device name</string>
+    <string name="ble_filter_rssi_setting_title">Apple device RSSI minimum</string>
 </resources>

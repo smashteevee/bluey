@@ -102,6 +102,7 @@ public class BluetoothHandler extends Service {
 
     private static int bleScanCoolOffTimeSettingValue = 0; // Default - overridden in Settings
     private static int bleScanPeriodTimeSettingValue = 30000; // Default - overridden in Settings
+    private static int bleScanRssiFilterSettingValue = -90; // Default - overridden in Settings
     private final static int DELAY_BETWEEN_BT_COMMANDS = 2000; // MS Delay between BT/GATT commands to avoid race issues on older Android / BT- def. a hack
     private final static int COMMAND_WATCHDOG_WAKEUP = 240000; // MS Watchdog wake to kill hanging BLE (usually GATT) commands due to some BT Race conditions
 
@@ -162,9 +163,11 @@ public class BluetoothHandler extends Service {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         bleScanPeriodTimeSettingValue = Integer.parseInt(prefs.getString("ble_scan_period", String.valueOf(bleScanPeriodTimeSettingValue))); // TODO: FIX HARDCODED HORRIBLE HACK
         bleScanCoolOffTimeSettingValue = Integer.parseInt(prefs.getString("cool_off_period", String.valueOf(bleScanCoolOffTimeSettingValue))); // TODO: Fix hack for reading integer being saved as strings in prefs
+        bleScanRssiFilterSettingValue = Integer.parseInt(prefs.getString("ble_filter_rssi", String.valueOf(bleScanRssiFilterSettingValue))); // TODO: Fix hack for readi
         Log.d(TAG, "Setting: BLE Scan period: " + bleScanPeriodTimeSettingValue);
         Log.d(TAG, "Setting: Cool Off Period: " + bleScanCoolOffTimeSettingValue);
-        blueyDeviceName = prefs.getString("mqtt_device_name", blueyDeviceName);
+        Log.d(TAG, "Setting: RSSI filter above: " + bleScanRssiFilterSettingValue);
+
 
     }
 
@@ -506,9 +509,10 @@ public class BluetoothHandler extends Service {
                             markDeviceFound(peripheral, lastSeenModel, scanResult.getRssi());
                         }
 
-                    } else if (bytesToHex(scanResult.getScanRecord().getBytes()).contains(APPLE_BLE_IPHONE_HEADER)){
-
-                        // Else If it's not a Macbook, add it to our collection of Apple Devices to connect later with GATT
+                    } else if ((bytesToHex(scanResult.getScanRecord().getBytes()).contains(APPLE_BLE_IPHONE_HEADER)) &&
+                            (scanResult.getRssi() >= bleScanRssiFilterSettingValue)) {
+                        // If RSSI is stronger than minimum RSSI and
+                        // If it's not a Macbook, add it to our collection of Apple Devices to connect later with GATT
                         scannedIOSPeripherals.put(peripheral.getAddress(), peripheral);
                     }
                 }
@@ -622,6 +626,7 @@ public class BluetoothHandler extends Service {
         String mqttServerURI = prefs.getString("mqtt_server_address", "");
         String mqttServerUsername = prefs.getString("mqtt_username", "");
         String mqttServerPassword = prefs.getString("mqtt_password", "");
+        blueyDeviceName = prefs.getString("mqtt_device_name", blueyDeviceName);
 
         Log.d(TAG, "Loading Setting: MQTT server: " + mqttServerURI);
         Log.d(TAG, "Loading Setting: MQTT username " + mqttServerUsername);
@@ -650,7 +655,7 @@ public class BluetoothHandler extends Service {
                 ) &&
                 (mqttServerUsername.length() > 0) && (mqttServerPassword.length() > 0)){
 
-            mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), mqttServerURI, mqttServerUsername + "@" + "bluey");
+            mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), mqttServerURI, mqttServerUsername + "@" + blueyDeviceName);
 
             mqttAndroidClient.setCallback(new MqttCallbackExtended() {
                 @Override

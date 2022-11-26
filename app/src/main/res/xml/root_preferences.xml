@@ -12,6 +12,11 @@
             app:defaultValue="10000"
             app:title="@string/ble_cool_off_period_setting_title"
             app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:key="ble_filter_rssi"
+            app:defaultValue="-90"
+            app:title="@string/ble_filter_rssi_setting_title"
+            app:useSimpleSummaryProvider="true" />
 
 
 
