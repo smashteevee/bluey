@@ -29,6 +29,7 @@
         android:theme="@style/Theme.Bluey">
         <activity
             android:name=".SettingsActivity"
+            android:parentActivityName=".MainActivity"
             android:exported="false"
             android:label="@string/title_activity_settings" />
 
