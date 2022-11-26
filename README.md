@@ -11,7 +11,7 @@ I built this for myself but realize it may be useful for others.
  * Flexibility to integrate to home automation: publishes detected devices with MQTT or broadcasts intents for Tasker
 
 ## Key Features
- * Runs on Android 6 and up?
+ * Runs on Android 6 and up (API 23+)
  * Supports detection of Apple Watches by specifying models X through Y
  * Supports BLE beacons through MAC addresses
  * Adjustable settings for scan period and cool-off
@@ -27,14 +27,20 @@ I built this for myself but realize it may be useful for others.
   * Enter in MAC address of devices that you'd like to detect
   * Select Apple Watch model(s) you'd like to detect
   * Check out how the MQTT messages are sent (go to HA MQTT monitor to see), then create a MQTT platform sensor in Home Assistant or write a Node-red automation to detect
+  * Long hold on a device name to delete it from the list
   
  ## Details
   * You cannot distinguish Apple Watches by MAC address (the main reason they are not widely supported in BLE MQTT gateways. You can distinguish by Model, however, which may work for your household, if it's unique. If multiple people in the house (or nearby apartments) wear the same model Apple Watch, you won't be able to distiguish them unfortunately
   * Runs as foreground service so can run with screen off
   * Uses the amazing BLESSED BLE library to abstract much of the Android BLE library
   * MQTT format is this. You can create a MQTT sensor in Home Assistant like this
+  * Tested on: 
+   * Pixel 2 XL (Android 11, API 30)
+   * Nexus 4 (Lineage OS, Android 8.1, API 27)
+   * Nexus 5 (Android 6.0, API 23)
   
  ## Tips
   * YMMV - May need to turn off Battery Optimization to keep running when device is sleep. If having issues with service running, look for tips in dontkillmyapp.com
+  * Need to turn on Location, Wifi and Bluetooth scanning permissions, if not prompted
   * If running on phone that's always plugged in, recommend you have a timer or automate with smart plug to unplug daily and charge when low to avoid battery over-heating/puffiness
   * 
