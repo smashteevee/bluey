@@ -27,6 +27,7 @@ I built this for myself but realize it may be useful for others.
   * Enter in MAC address of devices that you'd like to detect
   * Select Apple Watch model(s) you'd like to detect
   * Check out how the MQTT messages are sent (go to HA MQTT monitor to see), then create a MQTT platform sensor in Home Assistant or write a Node-red automation to detect
+  * Long hold on a device name to delete it from the list
   
  ## Details
   * You cannot distinguish Apple Watches by MAC address (the main reason they are not widely supported in BLE MQTT gateways. You can distinguish by Model, however, which may work for your household, if it's unique. If multiple people in the house (or nearby apartments) wear the same model Apple Watch, you won't be able to distiguish them unfortunately
