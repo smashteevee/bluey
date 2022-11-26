@@ -36,5 +36,6 @@ I built this for myself but realize it may be useful for others.
   
  ## Tips
   * YMMV - May need to turn off Battery Optimization to keep running when device is sleep. If having issues with service running, look for tips in dontkillmyapp.com
+  * Need to turn on Location, Wifi and Bluetooth scanning permissions, if not prompted
   * If running on phone that's always plugged in, recommend you have a timer or automate with smart plug to unplug daily and charge when low to avoid battery over-heating/puffiness
   * 
