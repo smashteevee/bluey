@@ -1,15 +1,25 @@
 # bluey
-BLE to MQTT Android app
+Apple Watch BLE to MQTT Android app
 
-Bluey is an open-source Android app that detects nearby Bluetooth Low Energy (BLE) devices and "forwards" their info as published MQTT events. It was designed for DIY home presence detection of common Bluetooth "beacons" (eg, iBeacons) but particularly Apple Watches, which are not commonly supported in most BLE detection apps/hardware.  Another goal of this was to repurpose an old Android phone I had lying around collecting dust.
+Bluey is an open-source Android app that detects nearby Bluetooth Low Energy (BLE) devices, including Apple Watches, and "forwards" their info as published MQTT events. It was designed for DIY home presence detection with popular, open-source solutions like Home Assistant and Mosquitto MQTT server. 
 
-I built this for myself but realize it may be useful for others.
+The main draw of detecting Apple Watches is that they are popular devices already worn by a lot of folks (no need to buy an iBeacon dongle) and BLE advertising packets are emitted for passive detection, so no need for additional battery-draining apps on the Watch.  
+
+I built this for myself but sharing if useful for others.
 
 ## Goals
- * Detect home presence of Apple Watches which have rotating MAC addresses
- * Keep functionality simple (this is also due to this being my first-ever Android app)
- * Flexibility to integrate to home automation: publishes detected devices with MQTT or broadcasts intents for Tasker
+ * Basic home presence detection using Apple Watches without the need for additional software for the watch
+ * Keep it simple (this is also because this is my first-ever Android app)
+ * Flexibility: publishes MQTT events or broadcasts intents for Tasker
+ * Breathe new life to an old Android phone instead of junking it
+ 
+## The Idea 
+ * Apple devices rotate MAC addresses, hence they aren't supported in many BLE presence detection apps that use a static list of MACs
+ * However, if make a GATT connection, you can read its characteristics, including its Model series, to infer if it's the Apple Watch you care about
+  * (This is also it's main limitation: If you live in a household or have closeby neighbors with the same Apple Watch model, you can't discern yours or will have false positives, though there are ways you can work with it)
+ * Once you've found the device, you scan for that MAC address until it changes again, where you begin the process again
 
+ 
 ## Key Features
  * Runs on Android 6 and up (API 23+)
  * Supports detection of Apple Watches by specifying models X through Y
