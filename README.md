@@ -1,17 +1,20 @@
 # bluey
 Apple Watch BLE to MQTT Android app
 
-Bluey is an open-source Android app that detects nearby Bluetooth Low Energy (BLE) devices, including Apple Watches, and "forwards" their info as published MQTT events. It was designed for DIY home presence detection with popular, open-source solutions like Home Assistant and Mosquitto MQTT server. 
+Bluey is an Android app that detects nearby Bluetooth Low Energy (BLE) devices, including Apple Watches, and "forwards" their info as published MQTT events. It was designed for DIY home presence detection with popular, open-source solutions like Home Assistant and Mosquitto MQTT server. 
 
-The main draw of detecting Apple Watches is that they are popular devices already worn by a lot of folks (no need to buy an iBeacon dongle) and BLE advertising packets are emitted for passive detection, so no need for additional battery-draining apps on the Watch.  
+The main draw of detecting Apple Watches is that they are popular devices, worn around the house and emit BLE advertising packets for passive detection. 
 
-I built this for myself but sharing if useful for others.
+I built this for myself (please see Caveats) and sharing the source if useful for others. I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) feature from [dalehumby](https://github.com/dalehumby).
 
 ## Goals
- * Basic home presence detection using Apple Watches without the need for additional software for the watch
- * Keep it simple (this is also because this is my first-ever Android app)
+ * Basic home presence detection with Apple Watches - no need for buying iBeacon/dongles!
+ * Low power usage - no apps to run on the Apple Watch
+ * Simplicity - No interest in a complex app. Am also limited by my coding as this is my first Android app
+ * Running quietly in the background - I had scripted a [Tasker automation initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by
+ * Upcycle an old Android phone with a broken screen
  * Flexibility: publishes MQTT events or broadcasts intents for Tasker
- * Breathe new life to an old Android phone instead of junking it
+
  
 ## The Idea 
  * Apple devices rotate MAC addresses, hence they aren't supported in many BLE presence detection apps that use a static list of MACs
@@ -28,6 +31,12 @@ I built this for myself but sharing if useful for others.
  * MQTT TCP server support
  * Little performance hacks to get detection as fast as possible (eg, caching last known MAC of targeted Apple Watch)
  
+## Uses
+ 
+ ## Caveats
+  * The code is pretty sloppy. Please don't
+  * This works well enough for me; I don't plan to spend much time on its
+  
  ## How to install
   * Side-load APK
   * Build it
