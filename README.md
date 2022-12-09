@@ -3,24 +3,23 @@ Apple Watch BLE to MQTT Android app
 
 Bluey is an Android app that detects nearby Bluetooth Low Energy (BLE) devices, including Apple Watches, and "forwards" their info as published MQTT events. It was designed for DIY home presence detection with popular, open-source solutions like Home Assistant and Mosquitto MQTT server. 
 
-The main draw of detecting Apple Watches is that they are popular devices, worn around the house and emit BLE advertising packets for passive detection. 
+The main draw of detecting Apple Watches is that they are popular devices, worn around the house and emit BLE advertising packets one could use for passive detection. The issue is they're not easy to detect.
 
-I built this for myself (please see Caveats) and sharing the source if useful for others. I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) feature from [dalehumby](https://github.com/dalehumby).
+I built this for myself (please see Caveats) but sharing if useful for others. I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) README from [dalehumby](https://github.com/dalehumby) which hints at how to detect Apple Watches, and the [Blessed](https://github.com/weliem/blessed-android) library which made getting started with BLE simple.
 
 ## Goals
- * Basic home presence detection with Apple Watches - no need for buying iBeacon/dongles!
- * Low power usage - no apps to run on the Apple Watch
- * Simplicity - No interest in a complex app. Am also limited by my coding as this is my first Android app
- * Running quietly in the background - I had scripted a [Tasker automation initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by
+ * Home presence detection with Apple Watches - no need for buying iBeacon/dongles!
+ * Simplicity - Just something basic. Am also constrained by my experience (my first Android app!)
+ * Tap into the power of native code - I had scripted a [Tasker automation initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by the hackiness of simulating screen touches
  * Upcycle an old Android phone with a broken screen
- * Flexibility: publishes MQTT events or broadcasts intents for Tasker
 
  
 ## The Idea 
- * Apple devices rotate MAC addresses, hence they aren't supported in many BLE presence detection apps that use a static list of MACs
- * However, if make a GATT connection, you can read its characteristics, including its Model series, to infer if it's the Apple Watch you care about
-  * (This is also it's main limitation: If you live in a household or have closeby neighbors with the same Apple Watch model, you can't discern yours or will have false positives, though there are ways you can work with it)
- * Once you've found the device, you scan for that MAC address until it changes again, where you begin the process again
+ * Apple devices rotate MAC addresses for privacy, hence you can't use them in BLE detection apps or firmware that rely on static MAC addresses
+ * However, you can scan for Apple devices emitting Nearby Info packets in their BLE advertising packets.
+ * The, if make a GATT connection, you can read "characteristics" to infer the Apple Watch model
+  * (This is also a limitation: If you live in a household or have close neighbors with the same Apple Watch model, you can't discern yours, though there are ways you can work with it)
+ * Once you've confirmed the BLE device, you scan for that MAC address until it changes again, where you begin the process again
 
  
 ## Key Features
@@ -30,6 +29,8 @@ I built this for myself (please see Caveats) and sharing the source if useful fo
  * Adjustable settings for scan period and cool-off
  * MQTT TCP server support
  * Little performance hacks to get detection as fast as possible (eg, caching last known MAC of targeted Apple Watch)
+ *  * Flexibility: publishes MQTT events or broadcasts intents for Tasker
+
  
 ## Uses
  
