@@ -1,11 +1,15 @@
 # bluey
 Apple Watch BLE to MQTT Android app
 
-Bluey is an Android app that detects nearby Apple Watches and other Bluetooth Low Energy (BLE) iBeacons. It "publishes" their info as MQTT events and was designed for DIY home presence detection solutions like Home Assistant and Mosquitto MQTT server. 
+Bluey is an Android app that detects nearby Apple Watches and other Bluetooth Low Energy (BLE) iBeacons. It "publishes" info as MQTT events and was designed for Home Automation software like [Home Assistant](https://github.com/home-assistant) and Mosquitto MQTT server. 
 
-The main draw of presence detection with Apple Watches is that they are popular devices, usually worn around the house and emit BLE advertising packets one can use for passive detection. The issue is they're not easy to detect.
+The main draw of presence detection with Apple Watches is that they are popular, usually worn around the house and emit BLE advertising packets one can use for passive detection. The issue is they're not easy to detect.
 
-I built this for educational purposes and personal use and sharing if it can help others. I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) README from [dalehumby](https://github.com/dalehumby) which hints at how to detect Apple Watches, and the [Blessed](https://github.com/weliem/blessed-android) library which made getting started with BLE simple.
+## Disclaimer
+I built this for educational purposes and personal use in my home, and am sharing if it can help others in home automation. Please do not be sketchy and do not use it for scanning in public.
+
+## Special thanks
+I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) README from [dalehumby](https://github.com/dalehumby) which hints at how to detect Apple Watches, and the [Blessed](https://github.com/weliem/blessed-android) library which made getting started with BLE simple.
 
 ## Goals
  * Home presence detection with Apple Watches - no need for buying iBeacons!
@@ -17,19 +21,18 @@ I built this for educational purposes and personal use and sharing if it can hel
 ## 💡 The Idea
  * Apple devices rotate MAC addresses for privacy, hence you can't use them in BLE detection apps or firmware that rely on static MAC addresses
  * However, you can filter for Apple devices emitting (https://github.com/furiousMAC/continuity/blob/master/messages/nearby_action.md)[Nearby Info messages] in their BLE advertising packets.
- * Then, if you make a GATT connection to the device, you can read its public properties (ie, characteristics) to infer the Apple Watch model
-  * (This is also a limitation: If you live in a household or have close neighbors with the same Apple Watch model, you can't discern yours, though there are ways you can work with it)
- * Once you've confirmed the BLE device, you scan for that MAC address until it changes again, where you begin the process again
+ * Then, if you make a GATT connection to the device, you can read its public properties (ie, characteristics) to infer the Apple Watch model (This is also a limitation: If you live in a household or have close neighbors with the same Apple Watch model, you may get false positives)
+ * Once you've "seen" the BLE device, you "cache" its MAC address and filter for it in subsequent scans until it changes again, where you begin the process again
 
  
 ## Key Features
  * Runs on Android 6 and up (API 23+)
  * Supports detection of Apple Watches by specifying models X through Y
- * Supports BLE beacons through MAC addresses
- * Adjustable settings for scan period and cool-off
+ * Supports iBeacon detection through MAC address
+ * Adjustable settings for BLE scan period and cool-off
  * MQTT TCP server support
  * Little performance hacks to get detection as fast as possible (eg, caching last known MAC of targeted Apple Watch)
- *  * Flexibility: publishes MQTT events or broadcasts intents for Tasker
+ * Publishes MQTT events with customizable labels
 
  
 ## Uses
@@ -40,7 +43,7 @@ I built this for educational purposes and personal use and sharing if it can hel
   
  ## How to install
   * Side-load APK
-  * Build it
+  * Download the project and Build it
   
  ## How to use
   * Enter in MQTT server details
