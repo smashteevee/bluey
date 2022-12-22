@@ -1,25 +1,25 @@
 # bluey
 Apple Watch BLE to MQTT Android app
 
-Bluey is an Android app that detects nearby Apple Watches and other Bluetooth Low Energy (BLE) iBeacons. It "publishes" info as MQTT events and was designed for Home Automation software like [Home Assistant](https://github.com/home-assistant) and Mosquitto MQTT server. 
+Bluey is an Android app that detects nearby Apple Watches and other Bluetooth Low Energy (BLE) iBeacons. It "publishes" info on detected devices via [MQTT](https://mqtt.org/) events and was designed to work with Home Automation software like [Home Assistant](https://github.com/home-assistant) and [Mosquitto](https://mosquitto.org/). 
 
-The main draw of presence detection with Apple Watches is that they are popular, usually worn around the house and emit BLE advertising packets one can use for passive detection. The issue is they're not easy to detect.
+The appeal of presence detection with Apple Watches is that they are popular, usually worn around the house and emit BLE advertising packets one can passively detect. The issue is they're not easy to detect (more below).
 
-## Disclaimer
-I built this for educational purposes and personal use in my home, and am sharing if it can help others in home automation. Please do not be sketchy and do not use it for scanning in public.
+## DISCLAIMER
+I built this project for educational purposes and personal use in my home. Please do not be sketchy nor use it use it for scanning/tracking others. Please be respectful of privacy norms and laws in your area.
 
 ## Special thanks
-I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) README from [dalehumby](https://github.com/dalehumby) which hints at how to detect Apple Watches, and the [Blessed](https://github.com/weliem/blessed-android) library which made getting started with BLE simple.
+I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) README from [dalehumby](https://github.com/dalehumby) which hints at how to detect known Apple Watches, and the [Blessed](https://github.com/weliem/blessed-android) library which BLE programming accessible to a noob like me.
 
 ## Goals
  * Home presence detection with Apple Watches - no need for buying iBeacons!
- * Simplicity - Just needs to work. Am also constrained by my limited Android coding experience (this is my first!)
- * Tap into the power of native code - I had scripted a [Tasker solution initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by the hackiness of simulating screen touches
+ * Simplicity - Just needs to work for my personal setup. OK if code is hacky and a mess
+ * Tap into native code - I had scripted a [Tasker solution initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by its hackiness (I do have limits!)
  * Upcycling - Give life to an old Android phone with a broken screen
 
  
 ## 💡 The Idea
- * Apple devices rotate MAC addresses for privacy, hence you can't use them in BLE detection apps or firmware that rely on static MAC addresses
+ * Apple devices [randomize MAC addresses](https://support.apple.com/guide/security/bluetooth-security-sec82597d97e/web) for privacy, hence you can't use them in BLE detection apps or firmware that rely on static MAC addresses
  * However, you can filter for Apple devices emitting (https://github.com/furiousMAC/continuity/blob/master/messages/nearby_action.md)[Nearby Info messages] in their BLE advertising packets.
  * Then, if you make a GATT connection to the device, you can read its public properties (ie, characteristics) to infer the Apple Watch model (This is also a limitation: If you live in a household or have close neighbors with the same Apple Watch model, you may get false positives)
  * Once you've "seen" the BLE device, you "cache" its MAC address and filter for it in subsequent scans until it changes again, where you begin the process again
