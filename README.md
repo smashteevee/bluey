@@ -1,26 +1,49 @@
 # bluey
-BLE to MQTT Android app
+Apple Watch BLE to MQTT Android app
 
-Bluey is an open-source Android app that detects nearby Bluetooth Low Energy (BLE) devices and "forwards" their info as published MQTT events. It was designed for DIY home presence detection of common Bluetooth "beacons" (eg, iBeacons) but particularly Apple Watches, which are not commonly supported in most BLE detection apps/hardware.  Another goal of this was to repurpose an old Android phone I had lying around collecting dust.
+Bluey is an Android app that detects nearby Apple Watches and other Bluetooth Low Energy (BLE) iBeacons. It "publishes" info on detected devices via [MQTT](https://mqtt.org/) events and was designed to work with Home Automation software like [Home Assistant](https://github.com/home-assistant) and [Mosquitto](https://mosquitto.org/). 
 
-I built this for myself but realize it may be useful for others.
+The appeal of presence detection with Apple Watches is that they are popular, usually worn around the house and emit BLE advertising packets one can passively detect. The issue is they're not easy to detect (more below).
+
+## DISCLAIMER
+I built this project for educational purposes and personal use in my home. Please do not be sketchy nor use it use it for scanning/tracking others. Please be respectful of privacy norms and laws in your area.
+
+## Special thanks
+I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) README from [dalehumby](https://github.com/dalehumby) which hints at how to detect known Apple Watches, and the [Blessed](https://github.com/weliem/blessed-android) library which BLE programming accessible to a noob like me.
 
 ## Goals
- * Detect home presence of Apple Watches which have rotating MAC addresses
- * Keep functionality simple (this is also due to this being my first-ever Android app)
- * Flexibility to integrate to home automation: publishes detected devices with MQTT or broadcasts intents for Tasker
+ * Home presence detection with Apple Watches - no need for buying iBeacons!
+ * Simplicity - Just needs to work for my personal setup. OK if code is hacky and a mess
+ * Tap into native code - I had scripted a [Tasker solution initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by its hackiness (I do have limits!)
+ * Upcycling - Give life to an old Android phone with a broken screen
 
+ 
+## 💡 The Idea
+ * Apple devices [randomize MAC addresses](https://support.apple.com/guide/security/bluetooth-security-sec82597d97e/web) for privacy, hence you can't use them in BLE detection apps or firmware that rely on static MAC addresses
+ * However, you can filter for Apple devices emitting (https://github.com/furiousMAC/continuity/blob/master/messages/nearby_action.md)[Nearby Info messages] in their BLE advertising packets.
+ * Then, if you make a GATT connection to the device, you can read its public properties (ie, characteristics) to infer the Apple Watch model (This is also a limitation: If you live in a household or have close neighbors with the same Apple Watch model, you may get false positives)
+ * Once you've "seen" the BLE device, you "cache" its MAC address and filter for it in subsequent scans until it changes again, where you begin the process again
+
+ 
 ## Key Features
  * Runs on Android 6 and up (API 23+)
  * Supports detection of Apple Watches by specifying models X through Y
- * Supports BLE beacons through MAC addresses
- * Adjustable settings for scan period and cool-off
+ * Supports iBeacon detection through MAC address
+ * Adjustable settings for BLE scan period and cool-off
  * MQTT TCP server support
  * Little performance hacks to get detection as fast as possible (eg, caching last known MAC of targeted Apple Watch)
+ * Publishes MQTT events with customizable labels
+
  
+## Uses
+ 
+ ## Caveats
+  * The code is pretty sloppy. Please don't
+  * This works well enough for me; I don't plan to spend much time on its
+  
  ## How to install
   * Side-load APK
-  * Build it
+  * Download the project and Build it
   
  ## How to use
   * Enter in MQTT server details
