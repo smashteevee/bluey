@@ -205,7 +205,8 @@ public class BluetoothHandler extends Service {
             {
                 case ACTION_START_FOREGROUND_SERVICE:
                     if (!isRunning) {
-                        startForegroundService();
+                        startForegroundServiceWithIntent(intent);
+
                     }
                     Toast.makeText(getApplicationContext(), "Foreground service start command received.", Toast.LENGTH_LONG).show();
                     break;
@@ -226,7 +227,7 @@ public class BluetoothHandler extends Service {
     }
 
     /* Used to build and start foreground service. */
-    private void startForegroundService()
+    private void startForegroundServiceWithIntent(Intent originalIntent)
     {
         Log.d(TAG, "Start foreground service.");
         isRunning = true;
@@ -294,6 +295,9 @@ public class BluetoothHandler extends Service {
 
         // Start Scan for peripherals
         central.startPairingPopupHack();
+
+        // Use filter list
+        bleFilterList = originalIntent.getStringArrayListExtra("BLEFilterList");
 
         // Scan for all
         startScan();
@@ -701,7 +705,8 @@ public class BluetoothHandler extends Service {
                             Log.e(TAG, "MQTT error message is null " + String.valueOf(message == null));
                         }
 
-                        Toast.makeText(getApplicationContext(), "connected", Toast.LENGTH_SHORT).show();
+                        // TODO: Figure out if this solves the "toast already killed" issue
+                        // Toast.makeText(getApplicationContext(), "connected", Toast.LENGTH_SHORT).show();
                         DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
                         disconnectedBufferOptions.setBufferEnabled(true);
                         disconnectedBufferOptions.setBufferSize(100);
@@ -757,7 +762,9 @@ public class BluetoothHandler extends Service {
                         String message = payload.toString();
 
                         mqttAndroidClient.publish(topic, message.getBytes(),0,false);
-                        Toast.makeText(getApplicationContext(), "published mqtt: " + topic + ": " + message, Toast.LENGTH_LONG).show();
+                        // TODO: Figure out if this solves the "toast already killed" issue
+
+                        //Toast.makeText(getApplicationContext(), "published mqtt: " + topic + ": " + message, Toast.LENGTH_LONG).show();
                         Log.i(TAG, "publishing MQTT : " + topic + ": " + message);
 
                     } catch ( Exception e) {

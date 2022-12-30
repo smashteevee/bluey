@@ -13,6 +13,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Build;
@@ -28,7 +29,10 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
+import org.json.JSONException;
 
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +80,9 @@ public class MainActivity extends AppCompatActivity {
 
 
         newIOSAddButton = findViewById(R.id.idBtnIOSAdd);
-        bleItemList = new ArrayList<>();
+        // Load any last saved list of ble items to scan for
+        bleItemList = getStringArrayPreference(getApplicationContext(), "ble_scan_list");
+
 
         // Tie BLEItemlist to adapter
         bleItemRVAdapter = new BLEItemRVAdapter(bleItemList, new BLEItemRVAdapter.OnItemLongClickListener() {
@@ -137,6 +143,9 @@ public class MainActivity extends AppCompatActivity {
             // Notify adapter
             bleItemRVAdapter.notifyDataSetChanged();
 
+            // Save to preferences
+            setStringArrayPreference(getApplicationContext(), "ble_scan_list", bleItemList);
+
             // Update service with latest list
             updateBLEFilterList();
 
@@ -154,6 +163,9 @@ public class MainActivity extends AppCompatActivity {
             bleItemList.remove(item);
             // Notify adapter
             bleItemRVAdapter.notifyDataSetChanged();
+
+            // Save to preferences
+            setStringArrayPreference(getApplicationContext(), "ble_scan_list", bleItemList);
 
             // Update service with latest list
             updateBLEFilterList();
@@ -183,6 +195,45 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(locationServiceStateReceiver);
        // unregisterReceiver(beaconReceiver);
 
+    }
+
+    /*
+    * Convenience method to serialize array to string in Preferences
+     */
+    public static void setStringArrayPreference(Context context, String key, ArrayList<String> values) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor editor = prefs.edit();
+        JSONArray a = new JSONArray();
+        for (int i = 0; i < values.size(); i++) {
+            a.put(values.get(i));
+        }
+        if (!values.isEmpty()) {
+            editor.putString(key, a.toString());
+        } else {
+            editor.putString(key, null);
+        }
+        editor.commit();
+    }
+
+    /*
+     * Convenience method to deserialize array to string from Preferences
+     */
+    public static ArrayList<String> getStringArrayPreference(Context context, String key) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        String json = prefs.getString(key, null);
+        ArrayList<String> devices = new ArrayList<String>();
+        if (json != null) {
+            try {
+                JSONArray a = new JSONArray(json);
+                for (int i = 0; i < a.length(); i++) {
+                    String url = a.optString(i);
+                    devices.add(url);
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return devices;
     }
 
     /** Create a chain of targets that will receive log data */
@@ -244,7 +295,7 @@ public class MainActivity extends AppCompatActivity {
         // Start foreground service of BT Handler
         Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
         intent.setAction(BluetoothHandler.ACTION_START_FOREGROUND_SERVICE);
-
+        intent.putStringArrayListExtra("BLEFilterList", bleItemList);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent);
         } else {
