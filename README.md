@@ -12,7 +12,7 @@ I built this project for educational purposes and personal use in my home. Pleas
 I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehumby/ESPHome-Apple-Watch-detection) README from [dalehumby](https://github.com/dalehumby) which hints at how to detect known Apple Watches, and the [Blessed](https://github.com/weliem/blessed-android) library which BLE programming accessible to a noob like me.
 
 ## Goals
- * :watch: Home presence detection with Apple Watches - no need for dedicated iBeacons!
+ * :watch: Home presence detection with Apple Watches - no need for iBeacons or extra apps on the Watch!
  * :ok_hand: Simplicity - Just needs to work for my personal setup. Hacky code and minimal UX are acceptable
  * :metal: Tap into native code - I had scripted a [Tasker solution initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by its limitations
  * :recycle: Upcycling - Give old Android phones some purpose
@@ -20,9 +20,9 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
  
 ## 💡 The Idea
  * Apple devices [randomize MAC addresses](https://support.apple.com/guide/security/bluetooth-security-sec82597d97e/web) every ~40 minutes for privacy purposes, so you can't use common BLE detection solutions that scan for a static MAC address
- * However, you can scan for Apple devices (including Apple Watches) emitting (https://github.com/furiousMAC/continuity/blob/master/messages/nearby_action.md)[Nearby Info messages] in their BLE advertising packets.
- * Then, if you connect to the device, you can read its "characteristics" to identify the specific Apple Watch model and infer it's yours (This is also a limitation: If you live in a household or have neighbors with the same model, you may get false positives)
- * Once you've "seen" the BLE device, you "cache" its MAC address and look for it in subsequent scans. Whenever it's detected, you mark it as Nearby.  If not, you repeat the previous steps
+ * However, you can scan for Apple devices (including Apple Watches) which periodically emit (https://github.com/furiousMAC/continuity/blob/master/messages/nearby_action.md)[Nearby Info messages] in BLE advertising packets.
+ * If you connect to the device, you can read its "characteristics" to infer the specific Apple Watch model is yours (This is also a limitation: If you live in a household or have neighbors with the same model, you may get false positives)
+ * Once you've "seen" the Apple Watch, you can look for its MAC address in subsequent scans without connecting to it. When it's detected, you mark it as Nearby.  If not, you repeat the previous steps to find its new MAC address - rinse and repeat
 
  
 ## Key Features
@@ -31,8 +31,8 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
  * Detect nearby iBeacons by static MAC address
  * Adjustable settings for BLE scan period and cool-off
  * MQTT TCP server support
- * Low battery usage
- * Publishes MQTT events with customizable labels
+ * Runs "in the background" as a [foreground service](https://developer.android.com/guide/components/foreground-services), with low battery usage
+ * Publishes JSON events over MQTT with customizable labels
  * Supports multiple instances running (eg, an Android placed in different rooms!)
 
  ## How to install
@@ -62,18 +62,18 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
   
  <img src="https://user-images.githubusercontent.com/59382083/213615417-5e1d7347-29eb-44d6-8acd-65cbe7e280bc.png" width="240"/>
    
-  * Create a MQTT platform sensor in Home Assistant or Node-red automation to trigger some magic based on the presence!
+  * Create a MQTT platform sensor in Home Assistant or Node-red automation based on the MQTT topic and payload
  
  ## MQTT Message format details
  The MQTT message that is published follows this format:
   * Topic: ```bluey/[Device name]/[MAC address | Apple Watch model machine code]```
   * JSON dictionary payload attributes
-    * id: MAC Address of iBeacon or Apple Watch
-    * rssi: RSSI detecting during BLE scan
-    * distance: Estimated distance from detected device (m) - very inaccurate!
-    * timeSinceScan: elapsed time (ms) between scan start and MQTT event publish
+    * ```id```: MAC Address of the iBeacon or Apple Watch
+    * ```rssi```: RSSI detecting during BLE scan
+    * ```distance```: Estimated distance from detected device (m) - very inaccurate!
+    * ```timeSinceScan```: elapsed time (ms) between scan start and MQTT event publish
 
- The message may look like this for Topic: ```bluey/Bedroom2/Watch5,11```
+ Eg, The message may look like this for Topic: ```bluey/Bedroom2/Watch5,11```
  ```
  {
      "id": "55:55:55:C2:7E:55",
@@ -82,9 +82,21 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
      "timeSinceScan": 17014
  }
 ```
-
-  * Long hold on a device name to delete it from the list
-  
+## Using it with Home Assistant
+ If you use Home Assistant, you can edit your configuration.yaml to create an [MQTT sensor](https://www.home-assistant.io/integrations/sensor.mqtt/) from this topic. In this example, we're creating an MQTT sensor that sets the value to "Nearby" when the watch is detected, and to "Unavailable" if 480 seconds pass without detecting it:
+```
+mqtt:
+  sensor:
+    - name: "Apple Watch SE"
+      state_topic: "bluey/+/Watch5,11"
+      value_template: >-
+        Nearby
+      json_attributes_topic: "bluey/+/Watch5,11"
+      expire_after: 480
+ ```
+ In my setup, I use this sensor to feed into a Bayesian sensor (in combination with an [nmap tracker](https://www.home-assistant.io/integrations/nmap_tracker/) for an iPhone) that predicts whether my spouse is home or not. The Apple Watch sensor helps "smooth" out the values as "sleeping" iPhones tend to drop from the network frequently to save battery:
+ 
+ 
  ## Caveats
   * Have not tested on other protocol MQTT servers (eg, TLS)
   * Be careful entering input; there is minimal error and input validation
