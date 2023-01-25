@@ -13,7 +13,7 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
 
 ## Goals
  * :watch: Home presence detection with Apple Watches - no need for iBeacons or extra apps on the Watch!
- * :ok_hand: Simplicity - Just needs to work for my personal setup. Hacky code and minimal UX are acceptable
+ * :ok_hand: Simplicity - Just needs to work for my personal setup, so quick hacks are acceptable
  * :metal: Tap into native code - I had scripted a [Tasker solution initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by its limitations
  * :recycle: Upcycling - Give old Android phones some purpose
 
@@ -31,12 +31,12 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
  * Detect nearby iBeacons by static MAC address
  * Adjustable settings for BLE scan period and cool-off
  * MQTT TCP server support
- * Runs "in the background" as a [foreground service](https://developer.android.com/guide/components/foreground-services), with low battery usage
+ * Runs "in the background" as a [foreground service](https://developer.android.com/guide/components/foreground-services), with low battery usage, even if your Android screen turns off
  * Publishes JSON events over MQTT with customizable labels
- * Supports multiple instances running (eg, an Android placed in different rooms!)
-
+ * Supports multiple instances (eg, place Androids in different rooms)
+ 
  ## How to install
-  * Download this project and build the APK in Android Studio, or
+  * Download this project and build the APK in Android Studio with Gradle, or
   * Install the latest unsigned APK (under [Releases](https://github.com/smashteevee/bluey/releases))
   
  ## How to use
@@ -50,6 +50,10 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
   <img src="https://user-images.githubusercontent.com/59382083/213614225-2a450b91-b8d4-4fc0-bccf-589ae6f42c31.png" width="240"/>
   
   1. In main screen dropdown, select the Apple Watch model you'd like to detect by its "machine code" (see this [list](https://gist.github.com/adamawolf/3048717) to find yours), then click "Add iOS" to add it to your list
+  
+   * For instance, the code for the "[Apple Watch SE 40mm case (GPS+Cellular)](https://gist.github.com/adamawolf/3048717#file-apple_mobile_device_types-txt-L169)" is ```Watch5,11```
+   * You can also confirm what your watch's code is by using a mobile BLE scanner app (Eg, [Nrf Connect](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp), making a GATT connection and reading its Device Make characteristics, like [this](https://static.wixstatic.com/media/1dde11_757a57b96230403a9114db4cc3db0b30~mv2.jpg/v1/fill/w_555,h_892,al_c,q_85,enc_auto/1dde11_757a57b96230403a9114db4cc3db0b30~mv2.jpg)
+  
   2. (Optional) Enter in static MAC address(es) of iBeacons that you'd also like to detect and click "Add"
  
   <img src="https://user-images.githubusercontent.com/59382083/213615883-69e21001-6afa-49e8-93b7-e692df57834c.png" width="240"/>
@@ -64,7 +68,9 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
    
   * Create a MQTT platform sensor in Home Assistant or Node-red automation based on the MQTT topic and payload
  
- ## MQTT Message format details
+ ## How to use the MQTT Message 
+ ### MQTT topic format details
+ 
  The MQTT message that is published follows this format:
   * Topic: ```bluey/[Device name]/[MAC address | Apple Watch model machine code]```
   * JSON dictionary payload attributes
@@ -82,8 +88,8 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
      "timeSinceScan": 17014
  }
 ```
-## Using it with Home Assistant
- If you use Home Assistant, you can edit your configuration.yaml to create an [MQTT sensor](https://www.home-assistant.io/integrations/sensor.mqtt/) from this topic. In this example, we're creating an MQTT sensor that sets the value to "Nearby" when the watch is detected, and to "Unavailable" if 480 seconds pass without detecting it:
+### Creating a sensor in Home Assistant
+ If you use Home Assistant, you can edit your configuration.yaml to create an [MQTT sensor](https://www.home-assistant.io/integrations/sensor.mqtt/) from this topic. Here we're creating an MQTT sensor that sets the value to "Nearby" when the watch is detected, and to "Unavailable" if 480 seconds pass without detecting it:
 ```
 mqtt:
   sensor:
@@ -94,31 +100,25 @@ mqtt:
       json_attributes_topic: "bluey/+/Watch5,11"
       expire_after: 480
  ```
- In my setup, I use this sensor to feed into a Bayesian sensor (in combination with an [nmap tracker](https://www.home-assistant.io/integrations/nmap_tracker/) for an iPhone) that predicts whether my spouse is home or not. The Apple Watch sensor helps "smooth" out the values as "sleeping" iPhones tend to drop from the network frequently to save battery:
+ In my setup, I use this sensor to feed into a Bayesian sensor (in combination with an [nmap tracker](https://www.home-assistant.io/integrations/nmap_tracker/) for an iPhone) that predicts whether my spouse is home or not. The Apple Watch sensor helps "smooth" out the values as "sleeping" iPhones often drop from the network when they doze:
  
  
- ## Caveats
-  * Have not tested on other protocol MQTT servers (eg, TLS)
-  * Be careful entering input; there is minimal error and input validation
-  * The code is pretty sloppy. Please don't
-  * This works well enough for me; I don't plan to spend much time on its
-  * UX is crude - the MQTT password field isn't hidden
-  * I was lazy and use really rudimentary code to check required permissions. It's recommended you 
+ 
+ 
+ ## Known issues, Limitations and Tips
+ This was my first Android app and I am just a hobby-coder, so I took a lot of shortcuts and hacked stuff to get things working. YMMV:
+ * TBH, I can't make sense of Android versioning and permissions so I put in rudimentary (possibly not working) code to prompt for required permissions. On some older Android versions, you may need to directly grant Location and Bluetooth scanning permissions to the Bluey App if you're not seeing BLE scanning work
+ * Battery Optimization - On some devices, you may need to turn off Battery Optimization to keep the App running when the device sleeps. If having issues with Bluey being killed after the phone starts dozing, follow the tips in [dontkillmyapp.com](dontkillmyapp.com)
+ * Have not tested on other protocol MQTT servers (eg, TLS) - maybe they work?
+ * Be careful entering input; there is minimal error and input validation so far
+ * Yah, the UX is crude (eg, the MQTT password field isn't hidden)
+ * I don't have any visual feedback in the app showing what the app service is doing currently unfortunately - you'll either have to debug from Android Studio ADB log or look at the MQTT topics published
+ 
+ ## Tested on: 
+ * Pixel 2 XL (Android 11, API 30)
+ * Nexus 4 (Lineage OS, Android 8.1, API 27)
+ * Nexus 5 (Android 6.0, API 23)
   
-  * This works well enough for me; I don't plan to spend much time on its
-  
- ## Details
-  * You cannot distinguish Apple Watches by MAC address (the main reason they are not widely supported in BLE MQTT gateways. You can distinguish by Model, however, which may work for your household, if it's unique. If multiple people in the house (or nearby apartments) wear the same model Apple Watch, you won't be able to distiguish them unfortunately
-  * Runs as foreground service so can run with screen off
-  * Uses the amazing BLESSED BLE library to abstract much of the Android BLE library
-  * MQTT format is this. You can create a MQTT sensor in Home Assistant like this
-  * Tested on: 
-   * Pixel 2 XL (Android 11, API 30)
-   * Nexus 4 (Lineage OS, Android 8.1, API 27)
-   * Nexus 5 (Android 6.0, API 23)
-  
- ## Tips
-  * Battery Optimization - On some devices, you may need to turn off Battery Optimization to keep the App running when the device sleeps. If having issues with service running, look for tips in dontkillmyapp.com
-  * Need to turn on Location, Wifi and Bluetooth scanning permissions, if not prompted
-  * If running on phone that's always plugged in, recommend you have a timer or automate with smart plug to unplug daily and charge when low to avoid battery over-heating/puffiness
-  * 
+ ## More Tips
+ * If running on phone that's always plugged in, recommend you have a timer or automate with smart plug to unplug daily and charge when low to avoid battery over-heating/puffiness
+ * 
