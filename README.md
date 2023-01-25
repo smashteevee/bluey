@@ -103,6 +103,7 @@ mqtt:
  ```
  In my setup, I use this sensor to feed into a Bayesian sensor (in combination with an [nmap tracker](https://www.home-assistant.io/integrations/nmap_tracker/) for an iPhone) that predicts whether my spouse is home or not. The Apple Watch sensor helps "smooth" out the values as "sleeping" iPhones often drop from the network when they doze:
  
+  <img src="https://user-images.githubusercontent.com/59382083/214594330-c44fe5ff-227e-4412-bcf6-daaa778faa31.png" width="269"/>
  
  
  ## Known issues and Limitations
