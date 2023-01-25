@@ -13,16 +13,17 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
 
 ## Goals
  * :watch: Home presence detection with Apple Watches - no need for iBeacons or extra apps on the Watch!
- * :ok_hand: Simplicity - Just needs to work for my personal setup, so quick hacks are acceptable
+ * :ok_hand: Simplicity - Just needs to work for my personal setup, so I've hacked, harcoded and taken shortcuts here and there
  * :metal: Tap into native code - I had scripted a [Tasker solution initially](https://www.nyctinker.com/post/ble-presence-detection-for-apple-watch-using-tasker) but was frustrated by its limitations
- * :recycle: Upcycling - Give old Android phones some purpose
+ * :recycle: Upcycling - Give old Android phones a second life
 
  
 ## 💡 The Idea
- * Apple devices [randomize MAC addresses](https://support.apple.com/guide/security/bluetooth-security-sec82597d97e/web) every ~40 minutes for privacy purposes, so you can't use common BLE detection solutions that scan for a static MAC address
+ * Apple devices [randomize MAC addresses](https://support.apple.com/guide/security/bluetooth-security-sec82597d97e/web) every ~XX minutes for privacy purposes, so you can't use common BLE detection solutions that scan for a "fixed" MAC address
  * However, you can scan for Apple devices (including Apple Watches) which periodically emit (https://github.com/furiousMAC/continuity/blob/master/messages/nearby_action.md)[Nearby Info messages] in BLE advertising packets.
- * If you connect to the device, you can read its "characteristics" to infer the specific Apple Watch model is yours (This is also a limitation: If you live in a household or have neighbors with the same model, you may get false positives)
- * Once you've "seen" the Apple Watch, you can look for its MAC address in subsequent scans without connecting to it. When it's detected, you mark it as Nearby.  If not, you repeat the previous steps to find its new MAC address - rinse and repeat
+ * If you [GATT connect](https://learn.adafruit.com/introduction-to-bluetooth-low-energy/gatt) to the device, you can read its "characteristics" to infer the specific Apple Watch model is yours (This is also a limitation: If you live in a household or have neighbors with the same model, you may get false positives)
+ * Once you've "seen" the Apple Watch, you can look for its last known MAC address in subsequent scans without connecting to it to detect if its Nearby.  If not, you repeat the previous steps to find its new MAC address - rinse and repeat
+ * You can automate these steps using an App running in the background on an old Android (bluey)
 
  
 ## Key Features
@@ -104,21 +105,22 @@ mqtt:
  
  
  
- 
- ## Known issues, Limitations and Tips
- This was my first Android app and I am just a hobby-coder, so I took a lot of shortcuts and hacked stuff to get things working. YMMV:
- * TBH, I can't make sense of Android versioning and permissions so I put in rudimentary (possibly not working) code to prompt for required permissions. On some older Android versions, you may need to directly grant Location and Bluetooth scanning permissions to the Bluey App if you're not seeing BLE scanning work
- * Battery Optimization - On some devices, you may need to turn off Battery Optimization to keep the App running when the device sleeps. If having issues with Bluey being killed after the phone starts dozing, follow the tips in [dontkillmyapp.com](dontkillmyapp.com)
+ ## Known issues and Limitations
+ * This was my first Android app and am just a hobby-coder, so I took a lot of shortcuts and copy-pasted example snippets to get things working; the code can be messy
+ * I haven't put in any visual feedback in the app showing what the app service is doing currently yet (TODO) - you'll either have to debug from Android Studio ADB logs or rely on MQTT logging
+ * TBH, I can't make sense of Android versions and permissions so I put in rudimentary (possibly not working) code to prompt for permissions. On some older Android versions, you may need to directly grant Location and Bluetooth scanning permissions to the Bluey App if you're not seeing BLE scanning work
+ * Turn off Battery Optimization for the app - Some devices may kill Bluey foreground service when the device sleeps; different manufacturers vary in aggressiveness. If you're seeing Bluey being killed after the phone starts dozing, follow the tips in [dontkillmyapp.com](dontkillmyapp.com) for your device 
  * Have not tested on other protocol MQTT servers (eg, TLS) - maybe they work?
  * Be careful entering input; there is minimal error and input validation so far
- * Yah, the UX is crude (eg, the MQTT password field isn't hidden)
- * I don't have any visual feedback in the app showing what the app service is doing currently unfortunately - you'll either have to debug from Android Studio ADB log or look at the MQTT topics published
+ * Yah, the UX is crude (eg, the MQTT password field isn't hidden)- sorry!
  
  ## Tested on: 
  * Pixel 2 XL (Android 11, API 30)
  * Nexus 4 (Lineage OS, Android 8.1, API 27)
  * Nexus 5 (Android 6.0, API 23)
   
- ## More Tips
- * If running on phone that's always plugged in, recommend you have a timer or automate with smart plug to unplug daily and charge when low to avoid battery over-heating/puffiness
- * 
+ ## Tips
+ * If running on an Android phone that's always plugged in, I recommend you have a timer or automate with smart plug to unplug daily and charge when low to avoid battery over-heating/puffiness
+ * Because you can only infer an Apple Watch is yours by Model (Machine code), you can get false positives if neighbors or people in the home wear the same model. You can minimize this by adjusting the "RSSI filter" setting to a larger number to shrink your radius of detection (eg, adjust RSSI from -90 to -60 to detect only closer proximity, ie stronger signal)
+ * You can increase the "BLE Scan Period" to scan for a longer period of time. This can help discovery of weaker signals or BLE iBeacons that emit less frequently. This will increase your battery usage however
+ * You can adjust the "Cool-off Period" to set how long Bluey waits before it begins another BLE scan. Increasing this value can help reduce battery drain
