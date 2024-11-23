@@ -3,12 +3,12 @@ plugins {
 }
 
 android {
-    compileSdk 32
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.nyctinker.bluey"
         minSdk 21
-        targetSdk 32
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 
@@ -47,7 +47,7 @@ dependencies {
     // MQTT library
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'com.github.hannesa2:paho.mqtt.android:3.5.0'
+    implementation 'com.github.hannesa2:paho.mqtt.android:3.6.5'
 
     // Older OSs
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
