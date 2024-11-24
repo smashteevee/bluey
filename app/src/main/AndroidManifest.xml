@@ -16,7 +16,7 @@
         android:usesPermissionFlags="neverForLocation" />
       <!--  tools:targetApi="s" /-->
     <!--uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" /-->
-    <!-- uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /-->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- For BLE discovery on older devices -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> <!-- Min/target SDK versions (<uses-sdk>) managed by build.gradle -->
