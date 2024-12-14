@@ -54,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private FloatingActionButton fabServiceControl;
     private boolean isServiceRunning     = false;
     private boolean isServiceRequested = false;
+    private boolean isScanning = false;
 
     protected List<String> foundDevices = new ArrayList<>();
     public static final String TAG = "MainActivity";
@@ -467,33 +468,37 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void handleServiceControl() {
-        if (!isServiceRunning) {
-            if (checkLocationServices()) {
-                // Start service
-                // Start foreground service of BT Handler
-                Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
+        Intent intent = null;
+        if (checkLocationServices()) {
+            intent = new Intent(this, BluetoothHandler.class);
+            if (!isServiceRunning) {
+                // Prep the intent to start the SErvice of BT handler
                 intent.setAction(BluetoothHandler.ACTION_START_FOREGROUND_SERVICE);
                 intent.putStringArrayListExtra("BLEFilterList", bleItemList);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(intent);
-                } else {
-                    startService(intent);
-                }
                 // set icon and flags
                 fabServiceControl.setImageResource(R.drawable.baseline_pause_circle_24);
                 isServiceRunning = true;
+                isScanning = true;
+            } else if (!isScanning) {
+                intent.setAction(BluetoothHandler.ACTION_RESUME_SCAN);
+                fabServiceControl.setImageResource(R.drawable.baseline_pause_circle_24);
+                isScanning = true;
+            } else {  // else if scanning, pause service
+                intent.setAction(BluetoothHandler.ACTION_PAUSE_SCAN);
+                fabServiceControl.setImageResource(R.drawable.baseline_play_circle_24);
+                isScanning = false;
             }
 
 
-        } else {
+        }
 
-            // Stop service
-            Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
-            intent.setAction(BluetoothHandler.ACTION_STOP_FOREGROUND_SERVICE);
-
-            stopService(intent);
-            fabServiceControl.setImageResource(R.drawable.baseline_play_circle_24);
-            isServiceRunning = false;
+        if (intent != null) {
+            //Send the intent to the service
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
         }
 
        /*
