@@ -94,6 +94,9 @@ public class BluetoothHandler extends Service {
     public static final String ACTION_START_FOREGROUND_SERVICE = "ACTION_START_FOREGROUND_SERVICE";
     public static final String ACTION_STOP_FOREGROUND_SERVICE = "ACTION_STOP_FOREGROUND_SERVICE";
     public static final String ACTION_UPDATE_FOREGROUND_SERVICE = "ACTION_UPDATE_FOREGROUND_SERVICE";
+    public static final String ACTION_PAUSE_SCAN = "ACTION_PAUSE_SCAN";
+    public static final String ACTION_RESUME_SCAN = "ACTION_RESUME_SCAN";
+
     private ArrayList<String> bleFilterList = new ArrayList<>();
 
     private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
@@ -137,7 +140,8 @@ public class BluetoothHandler extends Service {
     Instant lastCommandStart = null;
     Instant passStart = null;
 
-
+    private boolean isScanning = true;
+    
     // MQTT variables
     private static String lastMqttServerUsername = "";
     private static String lastMqttServerPassword = "";
@@ -218,6 +222,14 @@ public class BluetoothHandler extends Service {
                 case ACTION_UPDATE_FOREGROUND_SERVICE:
                     Toast.makeText(getApplicationContext(), "Foreground service update command received.", Toast.LENGTH_LONG).show();
                     updateForegroundService(intent);
+                    break;
+                case ACTION_PAUSE_SCAN:
+                    Toast.makeText(getApplicationContext(), "Foreground service pause command received.", Toast.LENGTH_LONG).show();
+                    isScanning = false; // user has requested pause of BLE scans
+                    break;
+                case ACTION_RESUME_SCAN:
+                    Toast.makeText(getApplicationContext(), "Foreground service resume command received.", Toast.LENGTH_LONG).show();
+                    isScanning = true; // user has requested resume of BLE scans
                     break;
             }
         }
@@ -983,82 +995,85 @@ public class BluetoothHandler extends Service {
      */
     private void startScan() {
 
-        // Enqueue the scan command now
-        Boolean result = commandQueue.add(new Runnable() {
-            @Override
-            public void run() {
-                // Track when we started
-                passStart = Instant.now();
+        if (isScanning) { // Only scan if user hasn't toggled Pause
+            // Enqueue the scan command now
+            Boolean result = commandQueue.add(new Runnable() {
+                @Override
+                public void run() {
+                    // Track when we started
+                    passStart = Instant.now();
 
-                // Prepare to stop after period
-                Log.i(TAG, "Starting Scan...");
-                // Queue up stop scan command via post delay
-                stopScan();
+                    // Prepare to stop after period
+                    Log.i(TAG, "Starting Scan...");
+                    // Queue up stop scan command via post delay
+                    stopScan();
 
-                // Initialize filters based on the BLE beacon filters entered
-                targetModels.clear();
-                targetMACs.clear();
+                    // Initialize filters based on the BLE beacon filters entered
+                    targetModels.clear();
+                    targetMACs.clear();
 
-                // Load latest settings before scan
-               loadSettings();
+                    // Load latest settings before scan
+                    loadSettings();
 
-               // Re-ini MQTT connection if settings have changed
-                initializeMQTT();
+                    // Re-ini MQTT connection if settings have changed
+                    initializeMQTT();
 
-                // Apply multiple scan filters: Apple devices using partial mfger data mask, and allowlisted beacons MAC
-                final List<ScanFilter> filters = new ArrayList<>();
+                    // Apply multiple scan filters: Apple devices using partial mfger data mask, and allowlisted beacons MAC
+                    final List<ScanFilter> filters = new ArrayList<>();
 
-                for (String bleItem : bleFilterList) {
-                    Log.d(TAG, "Processing " + bleItem);
-                    if (validateMAC(bleItem)) {
-                        // If it's a valid MAC address, add to MAC scan filter
-                        ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress(bleItem).build();
-                        filters.add(filterMac);
-                        if (!targetMACs.contains(bleItem)) {
-                            targetMACs.add(bleItem);
-                        }
-                        Log.i(TAG, "Adding MAC: " + bleItem);
-                    } else if (validateModel(bleItem)) {
-                        // Else if valid Apple Model string, add to Apple models to target
-                        if (!targetModels.contains(bleItem)) {
-                            targetModels.add(bleItem);
+                    for (String bleItem : bleFilterList) {
+                        Log.d(TAG, "Processing " + bleItem);
+                        if (validateMAC(bleItem)) {
+                            // If it's a valid MAC address, add to MAC scan filter
+                            ScanFilter filterMac = new ScanFilter.Builder().setDeviceAddress(bleItem).build();
+                            filters.add(filterMac);
+                            if (!targetMACs.contains(bleItem)) {
+                                targetMACs.add(bleItem);
+                            }
+                            Log.i(TAG, "Adding MAC: " + bleItem);
+                        } else if (validateModel(bleItem)) {
+                            // Else if valid Apple Model string, add to Apple models to target
+                            if (!targetModels.contains(bleItem)) {
+                                targetModels.add(bleItem);
+                            }
                         }
                     }
-                }
-                // Scan filter if 1 or more Apple Models entered
-                if (targetModels.size() > 0) {
-                    // Setup Apple manufacturer and mask for Nearby Info, Watch info per https://github.com/hexway/apple_bleee/blob/1f8022959be660b561e6004b808dd93fa252bc90/ble_read_state.py#L642
-                    //TODO Cleanup in function
-                    // filter to something like 1005xxx8
-                    ByteBuffer nearbyInfo = ByteBuffer.allocate(4);
-                    ByteBuffer nearbyWatch = ByteBuffer.allocate(4);
-                    nearbyInfo.put(0, (byte)0x10);
-                    nearbyInfo.put(1, (byte)0x05);
-                    nearbyInfo.put(2, (byte)0x21);
-                    nearbyInfo.put(3, (byte)0x18);
-                    nearbyWatch.put(0, (byte)0xFF);
-                    nearbyWatch.put(1, (byte)0xFF);
-                    nearbyWatch.put(2, (byte)0x00);
-                    nearbyWatch.put(3, (byte)0x0F);
-                    ScanFilter appleFilter = new ScanFilter.Builder().setManufacturerData(0x4C, nearbyInfo.array(), nearbyWatch.array()).build();
-                    filters.add(appleFilter);
-                }
+                    // Scan filter if 1 or more Apple Models entered
+                    if (targetModels.size() > 0) {
+                        // Setup Apple manufacturer and mask for Nearby Info, Watch info per https://github.com/hexway/apple_bleee/blob/1f8022959be660b561e6004b808dd93fa252bc90/ble_read_state.py#L642
+                        //TODO Cleanup in function
+                        // filter to something like 1005xxx8
+                        ByteBuffer nearbyInfo = ByteBuffer.allocate(4);
+                        ByteBuffer nearbyWatch = ByteBuffer.allocate(4);
+                        nearbyInfo.put(0, (byte) 0x10);
+                        nearbyInfo.put(1, (byte) 0x05);
+                        nearbyInfo.put(2, (byte) 0x21);
+                        nearbyInfo.put(3, (byte) 0x18);
+                        nearbyWatch.put(0, (byte) 0xFF);
+                        nearbyWatch.put(1, (byte) 0xFF);
+                        nearbyWatch.put(2, (byte) 0x00);
+                        nearbyWatch.put(3, (byte) 0x0F);
+                        ScanFilter appleFilter = new ScanFilter.Builder().setManufacturerData(0x4C, nearbyInfo.array(), nearbyWatch.array()).build();
+                        filters.add(appleFilter);
+                    }
 
-                // Start scan if anything to scan
-                if (filters.size() > 0) {
-                    central.scanForPeripheralsUsingFilters(filters);
+                    // Start scan if anything to scan
+                    if (filters.size() > 0) {
+                        central.scanForPeripheralsUsingFilters(filters);
+                    }
                 }
+            });
+
+            if (result) {
+                // Queue up to receive next command
+                nextCommand();
+            } else {
+                Log.e(TAG, "ERROR: Could not enqueue Start Scan command");
             }
-        });
 
-        if(result) {
-            // Queue up to receive next command
-            nextCommand();
         } else {
-            Log.e(TAG, "ERROR: Could not enqueue Start Scan command");
+            Log.i(TAG, "Skipping Scan per user request");
         }
-
-
 
     }
 

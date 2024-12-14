@@ -40,7 +40,8 @@
             android:exported="false"
             android:label="@string/title_activity_settings" />
 
-        <service android:name=".BluetoothHandler" />
+        <service android:name=".BluetoothHandler"
+            android:foregroundServiceType="connectedDevice" />
         <service android:name="org.eclipse.paho.android.service.MqttService" />
 
         <activity
