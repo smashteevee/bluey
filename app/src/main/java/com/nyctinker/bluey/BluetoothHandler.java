@@ -37,7 +37,7 @@ import com.welie.blessed.HciStatus;
 import com.welie.blessed.ScanFailure;
 
 import static com.welie.blessed.BluetoothBytesParser.FORMAT_UINT8;
-import static com.welie.blessed.BluetoothBytesParser.bytes2String;
+import static com.welie.blessed.BluetoothBytesParser.asHexString;
 
 
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
@@ -372,9 +372,9 @@ public class BluetoothHandler extends Service {
         @Override
         public void onCharacteristicWrite(@NotNull BluetoothPeripheral peripheral, @NotNull byte[] value, @NotNull BluetoothGattCharacteristic characteristic, @NotNull GattStatus status) {
             if (status == GattStatus.SUCCESS) {
-                Log.d(TAG, "SUCCESS: Writing " + bytes2String(value) + " to " + characteristic.getUuid());
+                Log.d(TAG, "SUCCESS: Writing " + asHexString(value) + " to " + characteristic.getUuid());
             } else {
-                Log.d(TAG, "ERROR: Failed writing " + bytes2String(value) + " to " +  characteristic.getUuid() + "(" + status + ")");
+                Log.d(TAG, "ERROR: Failed writing " + asHexString(value) + " to " +  characteristic.getUuid() + "(" + status + ")");
             }
         }
 

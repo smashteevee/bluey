@@ -79,4 +79,13 @@
         android:layout_below="@id/idAppleModelSpinner"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabServiceControl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="16dp"
+        android:contentDescription="@string/start_stop_service_label"
+        android:src="@drawable/baseline_play_circle_24" />
 </RelativeLayout>
