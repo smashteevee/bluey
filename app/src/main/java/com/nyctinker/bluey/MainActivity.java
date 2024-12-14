@@ -32,8 +32,12 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -47,11 +51,14 @@ public class MainActivity extends AppCompatActivity {
     private Button newIOSAddButton;
     private ArrayList<String> bleItemList;
     private BLEItemRVAdapter bleItemRVAdapter;
+    private FloatingActionButton fabServiceControl;
+    private boolean isServiceRunning     = false;
+    private boolean isServiceRequested = false;
 
     protected List<String> foundDevices = new ArrayList<>();
     public static final String TAG = "MainActivity";
-    private static final int REQUEST_ENABLE_BT = 1;
-    private static final int ACCESS_LOCATION_REQUEST = 2;
+    private static final int REQUEST_FOREGROUND_PERMISSIONS_CODE = 1;
+    private static final int REQUEST_BACKGROUND_PERMISSIONS_CODE = 2; //  If your app targets SDK 30 or higher and requests location permissions, you must request background location permissions separately from foreground location permissions.
 
 
 
@@ -68,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
         newMACTextField = findViewById(R.id.idEdtAdd);
         newMACAddButton = findViewById(R.id.idBtnAdd);
         newAppleSpinnerDropdown = findViewById(R.id.idAppleModelSpinner);
-
+        fabServiceControl = findViewById(R.id.fabServiceControl);
 
         // Create an ArrayAdapter using the string array and a default spinner layout
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
@@ -110,6 +117,25 @@ public class MainActivity extends AppCompatActivity {
                 addItem(newAppleSpinnerDropdown.getSelectedItem().toString());
             }
         });
+
+        fabServiceControl.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { // Android 12+
+                    // Check if permissions are already granted
+                    if (checkPermissions()) {
+                        // Permissions granted, proceed with starting/stopping the service
+                        handleServiceControl();
+                    } else {
+                        // Permissions not granted, request them
+                        requestPermissions();
+                        isServiceRequested = true; // Set flag to indicate service request
+                    }
+                } else {
+                    // For older SDK versions, permissions are granted at install time
+                    handleServiceControl();
+                }
+        }});
 
     }
 
@@ -178,14 +204,16 @@ public class MainActivity extends AppCompatActivity {
      * Method to send the latest filterlist to Foreground service
      */
     private void updateBLEFilterList() {
-        // Update service with latest list
-        Intent intent = new Intent(this, BluetoothHandler.class);
-        intent.setAction(BluetoothHandler.ACTION_UPDATE_FOREGROUND_SERVICE);
-        intent.putStringArrayListExtra("BLEFilterList", bleItemList);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent);
-        } else {
-            startService(intent);
+        // Update service with latest list if it's running already
+        if (isServiceRunning) {
+            Intent intent = new Intent(this, BluetoothHandler.class);
+            intent.setAction(BluetoothHandler.ACTION_UPDATE_FOREGROUND_SERVICE);
+            intent.putStringArrayListExtra("BLEFilterList", bleItemList);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
         }
     }
 
@@ -260,17 +288,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
+
+    }
+
+   /* private void checkBlueToothHardware() {
         if (getBluetoothManager().getAdapter() != null) {
             if (!isBluetoothEnabled()) {
                 Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                 if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                    // TODO: Consider calling
-                    //    ActivityCompat#requestPermissions
-                    // here to request the missing permissions, and then overriding
-                    //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                    //                                          int[] grantResults)
-                    // to handle the case where the user grants the permission. See the documentation
-                    // for ActivityCompat#requestPermissions for more details.
                     return;
                 }
                 startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
@@ -280,7 +305,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Log.e(TAG, "This device has no Bluetooth hardware");
         }
-    }
+    }*/
 
     private boolean isBluetoothEnabled() {
         BluetoothAdapter bluetoothAdapter = getBluetoothManager().getAdapter();
@@ -290,8 +315,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Method to start foreground service of BT scanner
-    private void initBluetoothHandler()
+  /*  private void initBluetoothHandler()
     {
+
+
         // Start foreground service of BT Handler
         Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
         intent.setAction(BluetoothHandler.ACTION_START_FOREGROUND_SERVICE);
@@ -301,7 +328,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             startService(intent);
         }
-    }
+    }*/
 
     @NotNull
     private BluetoothManager getBluetoothManager() {
@@ -315,7 +342,7 @@ public class MainActivity extends AppCompatActivity {
             if (action != null && action.equals(LocationManager.MODE_CHANGED_ACTION)) {
                 boolean isEnabled = areLocationServicesEnabled();
                 Log.d(TAG, "Location service state changed to:" + isEnabled);
-                checkPermissions();
+               // checkPermissions();
             }
         }
     };
@@ -354,15 +381,10 @@ public class MainActivity extends AppCompatActivity {
         return foundDevices;
     }
 
-    private void checkPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String[] missingPermissions = getMissingPermissions(getRequiredPermissions());
-            if (missingPermissions.length > 0) {
-                requestPermissions(missingPermissions, ACCESS_LOCATION_REQUEST);
-            } else {
-                permissionsGranted();
-            }
-        }
+    private boolean checkPermissions() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     private String[] getMissingPermissions(String[] requiredPermissions) {
@@ -379,14 +401,16 @@ public class MainActivity extends AppCompatActivity {
 
     private String[] getRequiredPermissions() {
         int targetSdkVersion = getApplicationInfo().targetSdkVersion;
+        // Android 12+ requires ACCESS_BACKGROUND_LOCATION for background BLE scanning
+        // However, we'll request it separately after foreground permissions are granted
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && targetSdkVersion >= Build.VERSION_CODES.S) {
             return new String[]{Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION};
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && targetSdkVersion >= Build.VERSION_CODES.Q) {
-            return new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_BACKGROUND_LOCATION};
+            return new String[]{Manifest.permission.ACCESS_FINE_LOCATION};
         } else return new String[]{Manifest.permission.ACCESS_COARSE_LOCATION};
     }
 
-    private void permissionsGranted() {
+  /*  private void permissionsGranted() {
         // Check if Location services are on because they are required to make scanning work for SDK < 31
         int targetSdkVersion = getApplicationInfo().targetSdkVersion;
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && targetSdkVersion < Build.VERSION_CODES.S) {
@@ -396,7 +420,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             initBluetoothHandler();
         }
-    }
+    }*/
 
     private boolean areLocationServicesEnabled() {
         LocationManager locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
@@ -442,33 +466,179 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void handleServiceControl() {
+        if (!isServiceRunning) {
+            if (checkLocationServices()) {
+                // Start service
+                // Start foreground service of BT Handler
+                Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
+                intent.setAction(BluetoothHandler.ACTION_START_FOREGROUND_SERVICE);
+                intent.putStringArrayListExtra("BLEFilterList", bleItemList);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent);
+                } else {
+                    startService(intent);
+                }
+                // set icon and flags
+                fabServiceControl.setImageResource(R.drawable.baseline_pause_circle_24);
+                isServiceRunning = true;
+            }
+
+
+        } else {
+
+            // Stop service
+            Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
+            intent.setAction(BluetoothHandler.ACTION_STOP_FOREGROUND_SERVICE);
+
+            stopService(intent);
+            fabServiceControl.setImageResource(R.drawable.baseline_play_circle_24);
+            isServiceRunning = false;
+        }
+
+       /*
+       if (!isServiceRunning) {
+
+            // Check BT hardware is enabled
+            if (isBluetoothEnabled()) {
+                // Request permissions
+                requestPermissions(getRequiredPermissions(), ACCESS_LOCATION_REQUEST);
+                // Set flag
+                isServiceRequested  = true;
+            } else {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Bluetooth hardware is required")
+                        .setMessage("Please enable Bluetooth hardware")
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                dialogInterface.cancel();
+
+                            }
+                        })
+                        .create()
+                        .show();
+
+            }
+
+
+        } else {
+            // Stop service
+            Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
+            intent.setAction(BluetoothHandler.ACTION_STOP_FOREGROUND_SERVICE);
+
+            stopService(intent);
+            fabServiceControl.setImageResource(R.drawable.baseline_play_circle_24);
+            isServiceRunning = false;
+
+        }
+        */
+    }
+
+    private void requestPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            boolean showRationale = false;
+            for (String permission : getRequiredPermissions()) {
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
+                    showRationale = true;
+                    break; // If rationale is needed for any permission, break the loop
+                }
+            }
+            if (showRationale) {
+                // Show rationale dialog
+                new AlertDialog.Builder(this)
+                        .setTitle(" Permission Required")
+                        .setMessage("This app needs access to Bluetooth and location to scan for Bluetooth devices.")
+                        .setPositiveButton("OK", (dialog, which) -> {
+                            // Request permissions
+                            ActivityCompat.requestPermissions(MainActivity.this,
+                                    getRequiredPermissions(),
+                                    REQUEST_FOREGROUND_PERMISSIONS_CODE);
+                        })
+                        .setNegativeButton("Cancel", (dialog, which) -> {
+                            // Handle permission denial
+                            // ...
+                        })
+                        .show();
+            } else {
+                // Request permissions directly
+                ActivityCompat.requestPermissions(this,
+                        getRequiredPermissions(),
+                        REQUEST_FOREGROUND_PERMISSIONS_CODE);
+            }
+        } else {
+            // Request permissions
+            ActivityCompat.requestPermissions(this,
+                    getRequiredPermissions(),
+                    REQUEST_FOREGROUND_PERMISSIONS_CODE);
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        // Check if all permission were granted
-        boolean allGranted = true;
-        for (int result : grantResults) {
-            if (result != PackageManager.PERMISSION_GRANTED) {
-                allGranted = false;
+        switch (requestCode) {
+            case REQUEST_FOREGROUND_PERMISSIONS_CODE: {
+
+                // Check if all permission were granted
+                boolean allForegroundPermissionsGranted = true;
+                for (int result : grantResults) {
+                    if (result != PackageManager.PERMISSION_GRANTED) {
+                        allForegroundPermissionsGranted = false;
+                        break;
+                    }
+
+                }
+
+                // Foreground permissions granted, now request background permission if needed
+
+                if ((allForegroundPermissionsGranted)) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        // Request background location permission
+                        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, REQUEST_BACKGROUND_PERMISSIONS_CODE);
+                    } else {
+                        // Background permission not needed or already granted, proceed with service
+                        handleServiceControl();
+                        isServiceRequested = false;
+                    }
+                } else {
+                    // Handle foreground permission denial
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Bluetooth and Location permissions (All the Time) are required for scanning Bluetooth peripherals")
+                            .setMessage("Please grant permissions")
+                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialogInterface, int i) {
+                                    dialogInterface.cancel();
+                                    //
+                                }
+                            })
+                            .create()
+                            .show();
+                }
                 break;
             }
-        }
-
-        if (allGranted) {
-            permissionsGranted();
-        } else {
-            new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("Permission is required for scanning Bluetooth peripherals")
-                    .setMessage("Please grant permissions")
-                    .setPositiveButton("Retry", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialogInterface, int i) {
-                            dialogInterface.cancel();
-                            checkPermissions();
-                        }
-                    })
-                    .create()
-                    .show();
+            case REQUEST_BACKGROUND_PERMISSIONS_CODE: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Background permission granted, proceed with service
+                    handleServiceControl();
+                    isServiceRequested = false;
+                } else {
+                    // Handle background permission denial
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Background locations permissions are required for scanning Bluetooth peripherals")
+                            .setMessage("Please grant permissions")
+                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialogInterface, int i) {
+                                    dialogInterface.cancel();
+                                    //
+                                }
+                            })
+                            .create()
+                            .show();
+                }
+                break;
+            }
         }
     }
 }
