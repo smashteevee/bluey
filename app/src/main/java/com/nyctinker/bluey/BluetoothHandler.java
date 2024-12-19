@@ -995,18 +995,20 @@ public class BluetoothHandler extends Service {
      */
     private void startScan() {
 
-        if (isScanning) { // Only scan if user hasn't toggled Pause
-            // Enqueue the scan command now
-            Boolean result = commandQueue.add(new Runnable() {
-                @Override
-                public void run() {
-                    // Track when we started
-                    passStart = Instant.now();
 
-                    // Prepare to stop after period
+        // Enqueue the scan command now
+        Boolean result = commandQueue.add(new Runnable() {
+            @Override
+            public void run() {
+                // Track when we started
+                passStart = Instant.now();
+
+
+                // Queue up stop scan command via post delay
+                stopScan();
+
+                if (isScanning) { // Only scan if user hasn't toggled Pause
                     Log.i(TAG, "Starting Scan...");
-                    // Queue up stop scan command via post delay
-                    stopScan();
 
                     // Initialize filters based on the BLE beacon filters entered
                     targetModels.clear();
@@ -1061,19 +1063,20 @@ public class BluetoothHandler extends Service {
                     if (filters.size() > 0) {
                         central.scanForPeripheralsUsingFilters(filters);
                     }
+                } else {
+                    Log.i(TAG, "Skipping Scan per user request");
                 }
-            });
-
-            if (result) {
-                // Queue up to receive next command
-                nextCommand();
-            } else {
-                Log.e(TAG, "ERROR: Could not enqueue Start Scan command");
             }
+        });
 
+        if (result) {
+            // Queue up to receive next command
+            nextCommand();
         } else {
-            Log.i(TAG, "Skipping Scan per user request");
+            Log.e(TAG, "ERROR: Could not enqueue Start Scan command");
         }
+
+
 
     }
 
