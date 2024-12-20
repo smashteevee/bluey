@@ -265,25 +265,7 @@ public class MainActivity extends AppCompatActivity {
         return devices;
     }
 
-    /** Create a chain of targets that will receive log data */
-  //  @Override
- /*   public void initializeLogging() {
-        // Wraps Android's native log framework.
-        LogWrapper logWrapper = new LogWrapper();
-        // Using Log, front-end to the logging chain, emulates android.util.log method signatures.
-        Log.setLogNode(logWrapper);
 
-        // Filter strips out everything except the message text.
-        MessageOnlyLogFilter msgFilter = new MessageOnlyLogFilter();
-        logWrapper.setNext(msgFilter);
-
-        // On screen logging via a fragment with a TextView.
-        LogFragment logFragment = (LogFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.log_fragment);
-        msgFilter.setNext(logFragment.getLogView());
-
-        Log.i(TAG, "Ready");
-    }*/
 
     @Override
     protected void onResume() {
@@ -315,21 +297,7 @@ public class MainActivity extends AppCompatActivity {
         return bluetoothAdapter.isEnabled();
     }
 
-    // Method to start foreground service of BT scanner
-  /*  private void initBluetoothHandler()
-    {
 
-
-        // Start foreground service of BT Handler
-        Intent intent = new Intent(MainActivity.this, BluetoothHandler.class);
-        intent.setAction(BluetoothHandler.ACTION_START_FOREGROUND_SERVICE);
-        intent.putStringArrayListExtra("BLEFilterList", bleItemList);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent);
-        } else {
-            startService(intent);
-        }
-    }*/
 
     @NotNull
     private BluetoothManager getBluetoothManager() {
@@ -348,30 +316,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-  /*  private final BroadcastReceiver beaconReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            //   BluetoothPeripheral peripheral = getPeripheral(intent.getStringExtra(BluetoothHandler.MEASUREMENT_EXTRA_PERIPHERAL));
-            //WeightMeasurement measurement = (WeightMeasurement) intent.getSerializableExtra(BluetoothHandler.MEASUREMENT_WEIGHT_EXTRA);
-            // if (measurement != null) {
-            String macAddress = intent.getStringExtra(BluetoothHandler.MEASUREMENT_EXTRA_PERIPHERAL);
-            Log.d(TAG, "Notified of beacon:" + macAddress);
 
-            // Add to dataset for recycleview of found devices if not a dupe
-            if (!foundDevices.contains(macAddress)) {
-                foundDevices.add(macAddress);
-
-                // Refresh RecyclerView
-                RecyclerViewFragment rf = (RecyclerViewFragment) getSupportFragmentManager().findFragmentById(R.id.sample_content_fragment);
-                rf.notifyAdded(foundDevices.size() - 1);
-                //measurementValue.setText(String.format(Locale.ENGLISH, "found bluecharm: %s", peripheral.getName()));
-                //  measurementValue.setText(String.format(Locale.ENGLISH, "%.1f %s\n%s\n\nfrom %s", measurement.weight, measurement.unit.toString(), dateFormat.format(measurement.timestamp), peripheral.getName()));
-                // }x
-            }
-
-
-        }
-    };*/
 
  /*   private BluetoothPeripheral getPeripheral(String peripheralAddress) {
         BluetoothCentralManager central = BluetoothHandler.getInstance(getApplicationContext()).central;  // TODO: replace
@@ -415,17 +360,7 @@ public class MainActivity extends AppCompatActivity {
         } else return new String[]{Manifest.permission.ACCESS_COARSE_LOCATION};
     }
 
-  /*  private void permissionsGranted() {
-        // Check if Location services are on because they are required to make scanning work for SDK < 31
-        int targetSdkVersion = getApplicationInfo().targetSdkVersion;
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && targetSdkVersion < Build.VERSION_CODES.S) {
-            if (checkLocationServices()) {
-                initBluetoothHandler();
-            }
-        } else {
-            initBluetoothHandler();
-        }
-    }*/
+
 
     private boolean areLocationServicesEnabled() {
         LocationManager locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
