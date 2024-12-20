@@ -59,10 +59,11 @@ I was inspired by the [ESPHome Apple Watch detection](https://github.com/dalehum
  
   <img src="https://user-images.githubusercontent.com/59382083/213615883-69e21001-6afa-49e8-93b7-e692df57834c.png" width="240"/>
 
-  3. Note: Tap-and-hold any list items to delete them
+  3. Click "Play" in the Floating Action Button in bottom right corner to begin BLE scanning in the background (you can pause it at anytime)
+  4. Note: Tap-and-hold any list items to delete them from your scan filter
   
  ### You're done - now what?
-  * The app will automatically scan for the devices in your list periodically (then cool off), based on your settings. If it detects your designated Apple Watch or iBeacon nearby, it will publish an MQTT event to your configured server
+  * Once you press "Play", the app will automatically scan for the devices in your filter list periodically (then cool off), based on your settings. If it detects your designated Apple Watch or iBeacon nearby, it will publish an MQTT event to your configured server
   * Confirm MQTT messages are being sent by using your favorite MQTT monitoring tool, eg I use the MQTT tool in Home Assistant:
   
  <img src="https://user-images.githubusercontent.com/59382083/213615417-5e1d7347-29eb-44d6-8acd-65cbe7e280bc.png" width="240"/>
@@ -107,15 +108,16 @@ mqtt:
  
  
  ## Known issues and Limitations
- * This was my first Android app and am just a hobby-coder, so I took a lot of shortcuts and copy-pasted example snippets to get things working; the code can be messy
- * I haven't put in any visual feedback in the app showing what the app service is doing currently yet (TODO) - you'll either have to debug from Android Studio ADB logs or rely on MQTT logging
- * TBH, I can't make sense of Android versions and permissions so I put in rudimentary (possibly not working) code to prompt for permissions. On some older Android versions, you may need to directly grant Location and Bluetooth scanning permissions to the Bluey App if you're not seeing BLE scanning work
+ * This was my first Android app and am just a hobby-coder, so I took a lot of shortcuts and copy-pasted example snippets to get things working; the code can be messy (but Gemini is helping a ton!)
+ * ~~I haven't put in any visual feedback in the app showing what the app service is doing currently yet~~ I've added a rudimentary Scan/Resume button- you'll  have to debug from Android Studio ADB logs or rely on MQTT logging to better troubleshoot
+ * The app prompts for specific but necessary permissions (Bluetooth scanning, Location, Background Scanning) based on Android version, but it's a [complex area](https://developer.android.com/training/permissions/requesting) and I may have missed cases for some versions, or particular makes. Please grant permissions when prompted for Location (most Precise) and background Bluetooth scanning (All the Time); you may need to manually grant in Permissions settings if I missed a particular permission your device requires
  * Turn off Battery Optimization for the app - Some devices may kill Bluey foreground service when the device sleeps; different manufacturers vary in aggressiveness. If you're seeing Bluey being killed after the phone starts dozing, follow the tips in [dontkillmyapp.com](dontkillmyapp.com) for your device 
  * Have not tested on other protocol MQTT servers (eg, TLS) - maybe they work?
  * Be careful entering input; there is minimal error and input validation so far
  * Yah, the UX is crude (eg, the MQTT password field isn't hidden)- sorry!
  
  ## Tested on: 
+ * Pixel 3 (Android 12, API 31)
  * Pixel 2 XL (Android 11, API 30)
  * Nexus 4 (Lineage OS, Android 8.1, API 27)
  * Nexus 5 (Android 6.0, API 23)
