@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
         fabServiceControl.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { // Android 12+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // Android 6.0 and up requires runtime perms
                     // Check if permissions are already granted
                     if (checkPermissions()) {
                         // Permissions granted, proceed with starting/stopping the service
@@ -383,9 +383,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean checkPermissions() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        String[] requiredPermissions = getRequiredPermissions();
+        for (String permission : requiredPermissions) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false; // If any permission is not granted, return false
+            }
+        }
+        return true; // If all permissions are granted, return true
     }
 
     private String[] getMissingPermissions(String[] requiredPermissions) {
@@ -540,7 +544,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {  // SDK 23 and up require runtime permission granting
             boolean showRationale = false;
             for (String permission : getRequiredPermissions()) {
                 if (ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
@@ -595,7 +599,7 @@ public class MainActivity extends AppCompatActivity {
 
                 }
 
-                // Foreground permissions granted, now request background permission if needed
+                // Foreground permissions granted, now request background permission if needed in SDK 34 and up
 
                 if ((allForegroundPermissionsGranted)) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
